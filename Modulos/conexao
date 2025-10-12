@@ -1239,15 +1239,18 @@ SCOLOR='\033[0m'
 			# Adquirindo easy-rsa
 			echo ""
 			fun_dep() {
-				wget -O ~/EasyRSA-3.2.0.tgz "https://github.com/OpenVPN/easy-rsa/releases/download/v3.2.0/EasyRSA-3.2.0.tgz"
-				[[ ! -e $HOME/EasyRSA-3.2.0.tgz ]] && {
-					wget -O ~/EasyRSA-3.2.0.tgz "https://github.com/OpenVPN/easy-rsa/releases/download/v3.2.0/EasyRSA-3.2.0.tgz"
-				}
-				tar xzf ~/EasyRSA-3.2.0.tgz -C ~/
-				mv ~/EasyRSA-3.2.0/ /etc/openvpn/
-				mv /etc/openvpn/EasyRSA-3.2.0/ /etc/openvpn/easy-rsa/
-				chown -R root:root /etc/openvpn/easy-rsa/
-				rm -rf ~/EasyRSA-3.2.0.tgz
+
+local EASYRSA_VERSION="3.1.7"
+			wget -O ~/EasyRSA-${EASYRSA_VERSION}.tgz "https://github.com/OpenVPN/easy-rsa/releases/download/v${EASYRSA_VERSION}/EasyRSA-${EASYRSA_VERSION}.tgz"
+			[[ ! -e $HOME/EasyRSA-${EASYRSA_VERSION}.tgz ]] && {
+				wget -O ~/EasyRSA-${EASYRSA_VERSION}.tgz "https://github.com/OpenVPN/easy-rsa/releases/download/v${EASYRSA_VERSION}/EasyRSA-${EASYRSA_VERSION}.tgz"
+			}
+			tar xzf ~/EasyRSA-${EASYRSA_VERSION}.tgz -C ~/
+			mv ~/EasyRSA-${EASYRSA_VERSION}/ /etc/openvpn/easy-rsa/
+			chown -R root:root /etc/openvpn/easy-rsa/
+			rm -f ~/EasyRSA-${EASYRSA_VERSION}.tgz
+
+
 				cd /etc/openvpn/easy-rsa/
 				./easyrsa init-pki
 				./easyrsa --batch build-ca nopass
