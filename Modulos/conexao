@@ -1307,8 +1307,8 @@ ifconfig-pool-persist ipp.txt" >/etc/openvpn/server.conf
 				esac
 				echo "keepalive 10 120
 float
+compress lzo
 cipher AES-256-CBC
-comp-lzo yes
 user nobody
 group $GROUPNAME
 persist-key
@@ -1367,6 +1367,7 @@ exit 0' >$RCLOCAL
 				[[ "$OS" = 'debian' ]] && {
 					if pgrep systemd-journal; then
 						systemctl restart openvpn@server.service
+						systemctl enable openvpn@server.service
 					else
 						/etc/init.d/openvpn restart
 					fi
@@ -1402,7 +1403,7 @@ exit 0' >$RCLOCAL
 				persist-tun
 				remote-cert-tls server
 				cipher AES-256-CBC
-				comp-lzo yes
+				compress lzo
 				setenv opt block-outside-dns
 				key-direction 1
 				verb 3
@@ -1488,12 +1489,12 @@ exit 0' >$RCLOCAL
 				verif_ptrs $porta
 				fun_inisocks() {
 					sleep 1
-					screen -dmS proxy python /etc/SSHPlus/proxy.py $porta
+					screen -dmS proxy python3 /etc/SSHPlus/proxy.py $porta
 					[[ $(grep -wc "proxy.py" /etc/autostart) = '0' ]] && {
-						echo -e "netstat -tlpn | grep -w $porta > /dev/null || {  screen -r -S 'proxy' -X quit;  screen -dmS proxy python /etc/SSHPlus/proxy.py $porta; }" >>/etc/autostart
+						echo -e "netstat -tlpn | grep -w $porta > /dev/null || {  screen -r -S 'proxy' -X quit;  screen -dmS proxy python3 /etc/SSHPlus/proxy.py $porta; }" >>/etc/autostart
 					} || {
 						sed -i '/proxy.py/d' /etc/autostart
-						echo -e "netstat -tlpn | grep -w $porta > /dev/null || {  screen -r -S 'proxy' -X quit;  screen -dmS proxy python /etc/SSHPlus/proxy.py $porta; }" >>/etc/autostart
+						echo -e "netstat -tlpn | grep -w $porta > /dev/null || {  screen -r -S 'proxy' -X quit;  screen -dmS proxy python3 /etc/SSHPlus/proxy.py $porta; }" >>/etc/autostart
 					}
 				}
 				echo ""
@@ -1543,12 +1544,12 @@ exit 0' >$RCLOCAL
 				verif_ptrs $porta
 				fun_iniwssocks() {
 					sleep 1
-					screen -dmS ws python /etc/SSHPlus/wsproxy.py $porta
+					screen -dmS ws python3 /etc/SSHPlus/wsproxy.py $porta
 					[[ $(grep -wc "wsproxy.py" /etc/autostart) = '0' ]] && {
-						echo -e "netstat -tlpn | grep -w $porta > /dev/null || {  screen -r -S 'ws' -X quit;  screen -dmS ws python /etc/SSHPlus/wsproxy.py $porta; }" >>/etc/autostart
+						echo -e "netstat -tlpn | grep -w $porta > /dev/null || {  screen -r -S 'ws' -X quit;  screen -dmS ws python3 /etc/SSHPlus/wsproxy.py $porta; }" >>/etc/autostart
 					} || {
 						sed -i '/wsproxy.py/d' /etc/autostart
-						echo -e "netstat -tlpn | grep -w $porta > /dev/null || {  screen -r -S 'ws' -X quit;  screen -dmS ws python /etc/SSHPlus/wsproxy.py $porta; }" >>/etc/autostart
+						echo -e "netstat -tlpn | grep -w $porta > /dev/null || {  screen -r -S 'ws' -X quit;  screen -dmS ws python3 /etc/SSHPlus/wsproxy.py $porta; }" >>/etc/autostart
 					}
 				}
 				echo ""
@@ -1603,12 +1604,12 @@ exit 0' >$RCLOCAL
 						sed -i "s/$listoldop/$listopen/" /etc/SSHPlus/open.py
 					}
 					sleep 1
-					screen -dmS openpy python /etc/SSHPlus/open.py $porta
+					screen -dmS openpy python3 /etc/SSHPlus/open.py $porta
 					[[ $(grep -wc "open.py" /etc/autostart) = '0' ]] && {
-						echo -e "netstat -tlpn | grep -w $porta > /dev/null || {  screen -r -S 'openpy' -X quit;  screen -dmS openpy python /etc/SSHPlus/open.py $porta; }" >>/etc/autostart
+						echo -e "netstat -tlpn | grep -w $porta > /dev/null || {  screen -r -S 'openpy' -X quit;  screen -dmS openpy python3 /etc/SSHPlus/open.py $porta; }" >>/etc/autostart
 					} || {
 						sed -i '/open.py/d' /etc/autostart
-						echo -e "netstat -tlpn | grep -w $porta > /dev/null || {  screen -r -S 'openpy' -X quit;  screen -dmS openpy python /etc/SSHPlus/open.py $porta; }" >>/etc/autostart
+						echo -e "netstat -tlpn | grep -w $porta > /dev/null || {  screen -r -S 'openpy' -X quit;  screen -dmS openpy python3 /etc/SSHPlus/open.py $porta; }" >>/etc/autostart
 					}
 				}
 				echo ""
@@ -1643,7 +1644,7 @@ exit 0' >$RCLOCAL
 				echo ""
 				abrirptsks() {
 					sleep 1
-					screen -dmS proxy python /etc/SSHPlus/proxy.py $porta
+					screen -dmS proxy python3 /etc/SSHPlus/proxy.py $porta
 					sleep 1
 				}
 				fun_bar 'abrirptsks'
@@ -1734,7 +1735,7 @@ exit 0' >$RCLOCAL
 						screen -wipe >/dev/null
 						_Ptsks="$(cat /tmp/Pt_sks)"
 						sleep 1
-						screen -dmS proxy python /etc/SSHPlus/proxy.py $_Ptsks
+						screen -dmS proxy python3 /etc/SSHPlus/proxy.py $_Ptsks
 						rm /tmp/Pt_sks
 					fi
 				}
@@ -1829,7 +1830,7 @@ exit 0' >$RCLOCAL
 						screen -wipe >/dev/null
 						_Ptwssks="$(cat /tmp/Pt_wssks)"
 						sleep 1
-						screen -dmS ws python /etc/SSHPlus/wsproxy.py $_Ptwssks
+						screen -dmS ws python3 /etc/SSHPlus/wsproxy.py $_Ptwssks
 						rm /tmp/Pt_wssks
 					fi
 				}
@@ -1988,7 +1989,7 @@ exit 0' >$RCLOCAL
 			[[ ! -e '/home/sshplus' ]] && exit 0
 			clear
 			echo -e "\E[44;1;37m                MODO DE CONEXAO                 \E[0m\n"
-			echo -e "\033[1;32mSERVICO: \033[1;33mOPENSSH \033[1;32mPORTA: \033[1;32m$(grep 'Port' /etc/ssh/sshd_config | cut -d' ' -f2 | grep -v 'no' | xargs)" && sts6="\033[1;32m◉ "
+			echo -e "\033[1;32mSERVICO: \033[1;33mOPENSSH \033[1;32mPORTA: \033[1;37m$(grep 'Port' /etc/ssh/sshd_config | cut -d' ' -f2 | grep -v 'no' | xargs)" && sts6="\033[1;32m◉ "
 			[[ "$(netstat -tlpn | grep 'docker' | wc -l)" != '0' ]] && {
 				echo -e "\033[1;32mSERVICO: \033[1;33mCHISEL: \033[1;32mPORTA: \033[1;37m$(netstat -nplt | grep 'docker' | awk {'print $4'} | cut -d: -f2 | xargs)"
 				sts8="\033[1;32m◉ "
