@@ -870,7 +870,7 @@ SCOLOR='\033[0m'
 						var_ptovpn2=$(sed -n '7 p' /etc/openvpn/client-common.txt | awk {'print $NF'})
 						sed -i "s/\b$var_ptovpn2/\b$porta/g" /etc/openvpn/client-common.txt
 						sleep 1
-						service openvpn restart
+						systemctl restart openvpn@server.service
 					}
 					fun_bar 'fun_opn'
 					echo ""
@@ -1004,7 +1004,7 @@ SCOLOR='\033[0m'
 						fun_multon() {
 							sed -i '/duplicate-cn/d' /etc/openvpn/server.conf
 							sleep 1.5s
-							service openvpn restart >/dev/null
+							systemctl restart openvpn@server.service >/dev/null
 							sleep 2
 						}
 						fun_spinmult() {
@@ -1033,7 +1033,7 @@ SCOLOR='\033[0m'
 							grep -v "^duplicate-cn" /etc/openvpn/server.conf >/tmp/tmpass && mv /tmp/tmpass /etc/openvpn/server.conf
 							echo "duplicate-cn" >>/etc/openvpn/server.conf
 							sleep 1.5s
-							service openvpn restart >/dev/null
+							systemctl restart openvpn@server.service >/dev/null
 						}
 						fun_spinmult2() {
 							helice() {
@@ -1239,15 +1239,15 @@ SCOLOR='\033[0m'
 			# Adquirindo easy-rsa
 			echo ""
 			fun_dep() {
-				wget -O ~/EasyRSA-3.0.1.tgz "https://github.com/kiritosshxd/SSHPLUS/raw/main/Install/EasyRSA-3.0.1.tgz"
-				[[ ! -e $HOME/EasyRSA-3.0.1.tgz ]] && {
-					wget -O ~/EasyRSA-3.0.1.tgz "https://github.com/kiritosshxd/SSHPLUS/raw/main/Install/EasyRSA-3.0.1.tgz"
+				wget -O ~/EasyRSA-3.2.0.tgz "https://github.com/OpenVPN/easy-rsa/releases/download/v3.2.0/EasyRSA-3.2.0.tgz"
+				[[ ! -e $HOME/EasyRSA-3.2.0.tgz ]] && {
+					wget -O ~/EasyRSA-3.2.0.tgz "https://github.com/OpenVPN/easy-rsa/releases/download/v3.2.0/EasyRSA-3.2.0.tgz"
 				}
-				tar xzf ~/EasyRSA-3.0.1.tgz -C ~/
-				mv ~/EasyRSA-3.0.1/ /etc/openvpn/
-				mv /etc/openvpn/EasyRSA-3.0.1/ /etc/openvpn/easy-rsa/
+				tar xzf ~/EasyRSA-3.2.0.tgz -C ~/
+				mv ~/EasyRSA-3.2.0/ /etc/openvpn/
+				mv /etc/openvpn/EasyRSA-3.2.0/ /etc/openvpn/easy-rsa/
 				chown -R root:root /etc/openvpn/easy-rsa/
-				rm -rf ~/EasyRSA-3.0.1.tgz
+				rm -rf ~/EasyRSA-3.2.0.tgz
 				cd /etc/openvpn/easy-rsa/
 				./easyrsa init-pki
 				./easyrsa --batch build-ca nopass
@@ -1257,7 +1257,7 @@ SCOLOR='\033[0m'
 				./easyrsa gen-crl
 				cp pki/ca.crt pki/private/ca.key pki/dh.pem pki/issued/server.crt pki/private/server.key /etc/openvpn/easy-rsa/pki/crl.pem /etc/openvpn
 				chown nobody:$GROUPNAME /etc/openvpn/crl.pem
-				openvpn --genkey --secret /etc/openvpn/ta.key
+				openvpn --genkey secret /etc/openvpn/ta.key
 				# Generando server.conf
 				echo "port $porta
 proto $PROTOCOL
@@ -1307,7 +1307,8 @@ ifconfig-pool-persist ipp.txt" >/etc/openvpn/server.conf
 				esac
 				echo "keepalive 10 120
 float
-compress lzo
+compress lz4-v2
+push \"compress lz4-v2\"
 cipher AES-256-CBC
 user nobody
 group $GROUPNAME
@@ -1396,14 +1397,14 @@ exit 0' >$RCLOCAL
 				proto $PROTOCOL
 				sndbuf 0
 				rcvbuf 0
-				remote 127.0.0.1 $porta
-				resolv-retry 5
+				remote $IP $porta
+				resolv-retry infinite
 				nobind
 				persist-key
 				persist-tun
 				remote-cert-tls server
 				cipher AES-256-CBC
-				compress lzo
+				compress lz4-v2
 				setenv opt block-outside-dns
 				key-direction 1
 				verb 3
@@ -1886,7 +1887,7 @@ exit 0' >$RCLOCAL
 			echo ""
 			fun_addpssh() {
 				echo "Port $pt" >>/etc/ssh/sshd_config
-				service ssh restart
+				systemctl restart ssh
 			}
 			fun_bar 'fun_addpssh'
 			echo -e "\n\033[1;32mPORTA ADICIONADA COM SUCESSO\033[0m"
@@ -1909,7 +1910,7 @@ exit 0' >$RCLOCAL
 				echo ""
 				fun_delpssh() {
 					sed -i "/Port $pt/d" /etc/ssh/sshd_config
-					service ssh restart
+					systemctl restart ssh
 				}
 				fun_bar 'fun_delpssh'
 				echo -e "\n\033[1;32mPORTA REMOVIDA COM SUCESSO\033[0m"
@@ -1945,12 +1946,13 @@ exit 0' >$RCLOCAL
 					[[ -e "/etc/openvpn/server.conf" ]] && ptvpn="$(netstat -nplt | grep 'openvpn' | awk {'print $4'} | cut -d: -f2 | xargs)" || ptvpn='1194'
 					DEBIAN_FRONTEND=noninteractive apt-get -y install sslh
 					echo -e "#Modo autónomo\n\nRUN=yes\n\nDAEMON=/usr/sbin/sslh\n\nDAEMON_OPTS='--user sslh --listen 0.0.0.0:443 --ssh 127.0.0.1:22 --ssl 127.0.0.1:$ptssl --http 127.0.0.1:80 --openvpn 127.0.0.1:$ptvpn --pidfile /var/run/sslh/sslh.pid'" >/etc/default/sslh
-					/etc/init.d/sslh start && service sslh start
+					systemctl start sslh
+					systemctl enable sslh
 				}
 				echo -e "\n\033[1;32mINSTALANDO O SSLH !\033[0m\n"
 				fun_bar 'fun_instsslh'
 				echo -e "\n\033[1;32mINICIANDO O SSLH !\033[0m\n"
-				fun_bar '/etc/init.d/sslh restart && service sslh restart'
+				fun_bar 'systemctl restart sslh'
 				[[ $(netstat -nplt | grep -w 'sslh' | wc -l) != '0' ]] && echo -e "\n\033[1;32mINSTALADO COM SUCESSO !\033[0m" || echo -e "\n\033[1;31mERRO INESPERADO !\033[0m"
 				sleep 3
 				fun_conexao
@@ -1966,7 +1968,8 @@ exit 0' >$RCLOCAL
 			read respo
 			[[ "$respo" = "s" ]] && {
 				fun_delsslh() {
-					/etc/init.d/sslh stop && service sslh stop
+					systemctl stop sslh
+					systemctl disable sslh
 					apt-get remove sslh -y
 					apt-get purge sslh -y
 				}
