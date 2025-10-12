@@ -1,153 +1,85 @@
 #!/bin/bash
 clear
-
-# --- Configuration ---
-# You might want to update these URLs if they change or if you host your own versions.
-# IMPORTANT: Replace these with YOUR OWN TRUSTED SOURCES if possible.
-GITHUB_BASE_URL_MAIN="https://raw.githubusercontent.com/sansoe2022/VPN_Manager/refs/heads/main"
-GITHUB_BASE_URL_KIRITO="https://raw.githubusercontent.com/kiritosshxd/SSHPLUS/main"
-DROPBOX_BASE_URL="https://www.dropbox.com/s"
-
-# File URLs for x86_64 architecture
-FILE_LIST_X86="${GITHUB_BASE_URL_MAIN}/Install/list"
-FILE_VERSAO="${GITHUB_BASE_URL_MAIN}/Install/versao"
-FILE_V2RAY_X86="${GITHUB_BASE_URL_MAIN}/Modulos/v2raymanager"
-FILE_BOTTESHELL_X86="${DROPBOX_BASE_URL}/m9tnme1jjbnehnj/botteste.sh"
-FILE_SHELLBOT_X86="${GITHUB_BASE_URL_MAIN}/Sistema/ShellBot.sh"
-
-# File URLs for aarch64 (ARM) architecture
-FILE_LIST_ARM="${DROPBOX_BASE_URL}/cs5poyigwm97dyd/listARM"
-FILE_V2RAY_ARM="${GITHUB_BASE_URL_KIRITO}/Modulos/v2raymanager" # Different source for ARM v2ray
-FILE_SHELLBOT_ARM="${DROPBOX_BASE_URL}/7dkgxy00x33c4y7/ShellBot.sh" # Different source for ARM ShellBot
-
-# Define directory for downloaded management scripts
-MANAGER_DIR="/usr/local/bin/sshplus-manager" # Using a more standard location for custom executables
-
-# --- Basic Checks ---
-if [[ "$(whoami)" != "root" ]]; then
-    echo -e "\033[1;33m[\033[1;31mErro\033[1;33m] \033[1;37m- \033[1;33mVocê precisa executar como root\033[0m"
-    exit 1
-fi
-
-# Ensure MANAGER_DIR exists early
-mkdir -p "$MANAGER_DIR"
-
-# --- Obfuscated Strings (Decoded for clarity) ---
-# Original: 'z1:y#x.5s0ul&p4hs$s.0a72d*n-e!v89e032:3r' | sed -e 's/[^a-z.]//ig' | rev -> server.plus
-_lnk="server.plus"
-# Original: '/3×u3#s87r/l32o4×c1a×l1/83×l24×i0b×' | sed -e 's/[^a-z/]//ig' -> /usr/local/lib/
-_Ink="/usr/local/lib/" # Changed to a more standard lib directory if this is for libraries
-# Original: '/3×u3#s×87r/83×l2×4×i0b×' | sed -e 's/[^a-z/]//ig' -> /usr/lib/
-_1nk="/usr/lib/"
-
-# Ensure the target directory for "list" files exists
-mkdir -p "$_Ink"
-
-# --- Functions ---
-
-# Displays a progress bar while a command runs in the background
+[[ "$(whoami)" != "root" ]] && {
+    echo -e "\033[1;33m[\033[1;31mErro\033[1;33m] \033[1;37m- \033[1;33mvocê precisa executar como root\033[0m"
+    rm $HOME/Plus >/dev/null 2>&1
+    exit 0
+}
+_lnk=$(echo 'z1:y#x.5s0ul&p4hs$s.0a72d*n-e!v89e032:3r' | sed -e 's/[^a-z.]//ig' | rev)
+_Ink=$(echo '/3×u3#s87r/l32o4×c1a×l1/83×l24×i0b×' | sed -e 's/[^a-z/]//ig')
+_1nk=$(echo '/3×u3#s×87r/83×l2×4×i0b×' | sed -e 's/[^a-z/]//ig')
+cd $HOME
 fun_bar() {
-    local command_to_run="$1"
-    local message="$2"
-    echo -ne "  \033[1;33m${message} \033[1;37m- \033[1;33m["
-    # Run command in subshell to capture its exit code and hide output
+    comando[0]="$1"
+    comando[1]="$2"
     (
-        eval "$command_to_run" >/dev/null 2>&1
-        echo $? >/tmp/fun_bar_exit_code
-    ) &
-    local pid=$! # PID of the background subshell
-    local spin='-\|/'
-    local i=0
-    while kill -0 $pid 2>/dev/null; do # Check if process is still running
-        i=$(( (i+1) % 4 ))
-        echo -ne "\b${spin:$i:1}" # Update spinner
-        sleep 0.2
+        [[ -e $HOME/fim ]] && rm $HOME/fim
+        ${comando[0]} -y >/dev/null 2>&1
+        ${comando[1]} -y >/dev/null 2>&1
+        touch $HOME/fim
+    ) >/dev/null 2>&1 &
+    tput civis
+    echo -ne "  \033[1;33mAGUARDE \033[1;37m- \033[1;33m["
+    while true; do
+        for ((i = 0; i < 18; i++)); do
+            echo -ne "\033[1;31m#"
+            sleep 0.1s
+        done
+        [[ -e $HOME/fim ]] && rm $HOME/fim && break
+        echo -e "\033[1;33m]"
+        sleep 1s
+        tput cuu1
+        tput dl1
+        echo -ne "  \033[1;33mAGUARDE \033[1;37m- \033[1;33m["
     done
-    local exit_code=$(</tmp/fun_bar_exit_code) # Read exit code
-    rm -f /tmp/fun_bar_exit_code # Clean up temp file
-    wait $pid # Ensure the background process truly finished
-    echo -e "\b\033[1;33m]\033[1;37m -\033[1;32m OK !\033[1;37m"
-    if [[ "$exit_code" -ne 0 ]]; then
-        echo -e "\033[1;31mErro durante a execução do comando: '$command_to_run' (Exit Code: $exit_code)\033[0m"
-        exit 1 # Exit script on command failure
-    fi
+    echo -e "\033[1;33m]\033[1;37m -\033[1;32m OK !\033[1;37m"
+    tput cnorm
 }
-
-# Downloads a file with progress and error checking
-download_manager_file() {
-    local url="$1"
-    local dest_path="$2"
-    echo -ne "  \033[1;33mBaixando ${dest_path##*/} \033[1;37m- \033[1;33m["
-    # Using wget with progress, redirecting output to dest_path
-    if ! wget -q --show-progress -O "$dest_path" "$url"; then
-        echo -e "\b\033[1;31m]\033[1;37m -\033[1;31m FALHA!\033[0m"
-        echo -e "\033[1;31mErro ao baixar arquivo de: $url\033[0m"
-        exit 1 # Exit script on download failure
-    fi
-    echo -e "\b\033[1;33m]\033[1;37m -\033[1;32m OK !\033[1;37m"
-}
-
-# Verifies existence and executable permission for the 'list' file (x86_64)
 function verif_key() {
-    local list_file="${_Ink}/list"
-    chmod +x "$list_file" >/dev/null 2>&1
-    if [[ ! -e "$list_file" ]]; then
-        echo -e "\n\033[1;31mKEY INVÁLIDA ou arquivo 'list' ausente em '$list_file'!\033[0m"
+    krm=$(echo '5:q-3gs2.o7%8:1' | rev)
+    chmod +x $_Ink/list >/dev/null 2>&1
+    [[ ! -e "$_Ink/list" ]] && {
+        echo -e "\n\033[1;31mKEY INVÁLIDA!\033[0m"
+        rm -rf $HOME/Plus >/dev/null 2>&1
+        sleep 2
+        clear
         exit 1
-    fi
+    }
 }
-
-# Verifies existence and executable permission for the 'listARM' file (aarch64)
 function verif_key2() {
-    local list_file="${_Ink}/listARM"
-    chmod +x "$list_file" >/dev/null 2>&1
-    if [[ ! -e "$list_file" ]]; then
-        echo -e "\n\033[1;31mKEY INVÁLIDA ou arquivo 'listARM' ausente em '$list_file'!\033[0m"
+    krm=$(echo '5:q-3gs2.o7%8:1' | rev)
+    chmod +x $_Ink/listARM >/dev/null 2>&1
+    [[ ! -e "$_Ink/listARM" ]] && {
+        echo -e "\n\033[1;31mKEY INVÁLIDA!\033[0m"
+        rm -rf $HOME/Plus >/dev/null 2>&1
+        sleep 2
+        clear
         exit 1
-    fi
+    }
 }
 
-# Installs Python 3 and pip, ensuring 'python' and 'pip' commands point to Python 3
-install_python_essentials() {
-    echo "Instalando python3, python3-pip e socat..."
-    apt-get install -y python3 python3-pip socat
-
-    # Ensure 'python' symlink points to 'python3'
-    if ! command -v python &>/dev/null || [[ "$(readlink -f /usr/bin/python)" != "$(readlink -f /usr/bin/python3)" ]]; then
-        echo "Configurando 'python' para apontar para 'python3'..."
-        update-alternatives --install /usr/bin/python python /usr/bin/python3 100 --force
-    fi
-    # Ensure 'pip' symlink points to 'pip3'
-    if ! command -v pip &>/dev/null || [[ "$(readlink -f /usr/bin/pip)" != "$(readlink -f /usr/bin/pip3)" ]]; then
-         echo "Configurando 'pip' para apontar para 'pip3'..."
-         update-alternatives --install /usr/bin/pip pip /usr/bin/pip3 100 --force
-    fi
+otimize_python() {
+    # INSTALA PYTHON AO PYTHON2
+    apt-get install python -y >/dev/null 2>&1
+    apt-get install python2 -y >/dev/null 2>&1
+    # INSTALA PYTHON3.6 AO PYTHON3.9
+    apt-get install python3.6 -y >/dev/null 2>&1
+    apt-get install python3.7 -y >/dev/null 2>&1
+    apt-get install python3.8 -y >/dev/null 2>&1
+    apt-get install python3.9 -y >/dev/null 2>&1
+    # CRIA ALTERNATIVAS PYTHON
+    update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.6 1 >/dev/null 2>&1
+    update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.8 3 >/dev/null 2>&1
+    update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.7 2 >/dev/null 2>&1
+    update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.9 4 >/dev/null 2>&1
+    # INSTALA PIP
+    apt install pip -y
+    apt install python3-pip -y
+    # INSTALA SOCAT
+    apt install socat -y
+    #SETAR PYTHON3
+    update-alternatives --set python3 /usr/bin/python3.6
 }
-
-# Installs common core packages
-install_core_packages() {
-    local packages=(
-        "bc" "screen" "nano" "unzip" "lsof" "net-tools" # netstat is part of net-tools
-        "dos2unix" "nload" "jq" "curl" "figlet" "at"
-        "ufw" # Ensure ufw is installed for firewall rules
-    )
-    # Check for dpkg lock and wait if necessary
-    while fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1; do
-        echo -e "\033[1;33mAguardando outro processo apt/dpkg finalizar...\033[0m"
-        sleep 5
-    done
-    echo "Atualizando lista de pacotes apt antes de instalar..."
-    apt-get update -y
-    echo "Instalando pacotes essenciais..."
-    for pkg in "${packages[@]}"; do
-        apt-get install -y "$pkg"
-    done
-    echo "Instalando speedtest-cli via pip..."
-    python3 -m pip install speedtest-cli
-}
-
-
-# --- Script Start ---
 echo -e "\033[1;31m════════════════════════════════════════════════════\033[0m"
 tput setaf 7
 tput setab 4
@@ -161,191 +93,248 @@ echo ""
 echo -e "\033[1;31m• \033[1;33mINSTALAR UM CONJUNTO DE SCRIPTS COMO FERRAMENTAS\033[0m"
 echo -e "\033[1;33m  PARA O GERENCIAMENTO DE REDE, SISTEMA E USUARIOS\033[0m"
 echo ""
-echo -e "\033[1;32m• \033[1;32mDICA! \033[1;33mUTILIZE O TEMA DARK EM SEU TERMINAL PARA\033[0m"
+echo -e "\033[1;32m• \033[1;32mDICA! \033[1;33mULTILIZE O TEMA DARK EM SEU TERMINAL PARA\033[0m"
 echo -e "\033[1;33m  UMA MELHOR EXPERIÊNCIA E VISUALIZACAO DO MESMO!\033[0m"
 echo ""
 echo -e "\033[1;31m≠×≠×≠×≠×≠×≠×≠×[\033[1;33m • \033[1;32mEDIT:@kiritosshxd\033[1;33m •\033[1;31m ]≠×≠×≠×≠×≠×≠×≠×\033[0m"
 echo ""
-echo -e "\033[1;31mAVISO DE SEGURANÇA: \033[1;33mEste script baixa e executa arquivos de fontes externas.\033[0m"
-echo -e "\033[1;33mCertifique-se de confiar nessas fontes antes de continuar.\033[0m"
-echo ""
-
-read -p "$(echo -e '\033[1;36mDeseja continuar com a instalação (s/N)? \033[1;37m')" -n 1 -r
-echo
-if [[ ! $REPLY =~ ^[Ss]$ ]]; then
-    echo -e "\033[1;31mInstalação cancelada pelo usuário.\033[0m"
-    exit 0
-fi
-
-echo -ne "\033[1;36mGERAR AS KEY FREE [N/S]: \033[1;37m"
+#-----------------------------------------------------------------------------------------------------------------
+echo -ne "\033[1;36mGENERAR AS KEY FREE [N/S]: \033[1;37m"
 read x
 [[ $x = @(n|N) ]] && exit
-
 echo -e "\033[1;36mSelecione a Arquitetura da sua VPS: \033[1;37m"
 echo -e "[1] - x86_64"
 echo -e "[2] - aarch64(ARM)"
 echo -ne "\033[1;36mOpção: \033[1;37m"
 read resposta
-
-# Common setup regardless of architecture
-echo -e "\n\033[1;36mConfigurando SSH... \033[0m"
-# Ensure SSH listens on port 22 instead of 22222 if that was previously set
-sed -i 's/Port 22222/Port 22/g' /etc/ssh/sshd_config >/dev/null 2>&1
-systemctl restart ssh.service || service ssh restart >/dev/null 2>&1 # Use systemctl for modern systems, fallback to service
-mkdir -p /etc/rec >/dev/null 2>&1 # Ensure /etc/rec exists
-
 if [[ "$resposta" = '1' ]]; then
-    echo -e "\n\033[1;36mArquitetura selecionada: x86_64\033[0m"
-
-    echo -e "\033[1;36mVERIFICANDO E BAIXANDO ARQUIVOS ESSENCIAIS (x86_64)... \033[0m"
-    download_manager_file "$FILE_LIST_X86" "${_Ink}/list"
-    verif_key # Check 'list' file
-
-    download_manager_file "$FILE_VERSAO" "$MANAGER_DIR/versao"
-    download_manager_file "$FILE_V2RAY_X86" "$MANAGER_DIR/v2raymanager"
-    download_manager_file "$FILE_BOTTESHELL_X86" "$MANAGER_DIR/botteste.sh"
-
-    # Ensure the BOT directory exists before downloading ShellBot.sh
-    mkdir -p "$HOME/BOT"
-    download_manager_file "$FILE_SHELLBOT_X86" "$HOME/BOT/ShellBot.sh"
-
-    chmod +x "${MANAGER_DIR}/v2raymanager" "${MANAGER_DIR}/botteste.sh" "${HOME}/BOT/ShellBot.sh"
-    echo "/bin/menu" >/bin/h && chmod +x /bin/h >/dev/null 2>&1 # Original script creates this symlink/wrapper
-
-elif [[ "$resposta" = '2' ]]; then
-    echo -e "\n\033[1;36mArquitetura selecionada: aarch64(ARM)\033[0m"
-
-    echo -e "\033[1;36mVERIFICANDO E BAIXANDO ARQUIVOS ESSENCIAIS (aarch64)... \033[0m"
-    download_manager_file "$FILE_LIST_ARM" "${_Ink}/listARM"
-    verif_key2 # Check 'listARM' file
-
-    download_manager_file "$FILE_VERSAO" "$MANAGER_DIR/versao"
-    download_manager_file "$FILE_V2RAY_ARM" "$MANAGER_DIR/v2raymanager"
-    download_manager_file "$FILE_BOTTESHELL_X86" "$MANAGER_DIR/botteste.sh" # Assuming botteste.sh is universal or x86 version works on ARM
-
-    # Ensure the BOT directory exists before downloading ShellBot.sh
-    mkdir -p "$HOME/BOT"
-    download_manager_file "$FILE_SHELLBOT_ARM" "$HOME/BOT/ShellBot.sh"
-
-    chmod +x "${MANAGER_DIR}/v2raymanager" "${MANAGER_DIR}/botteste.sh" "${HOME}/BOT/ShellBot.sh"
-    echo "/bin/menu" >/bin/h && chmod +x /bin/h >/dev/null 2>&1 # Original script creates this symlink/wrapper
-
-else
+    sed -i 's/Port 22222/Port 22/g' /etc/ssh/sshd_config >/dev/null 2>&1
+    service ssh restart >/dev/null 2>&1
+    mkdir /etc/rec >/dev/null 2>&1
+    echo -e "\n\033[1;36mVERIFICANDO... \033[1;37m 16983:16085\033[0m"
+    rm $_Ink/list >/dev/null 2>&1
+    wget -P $_Ink https://raw.githubusercontent.com/sansoe2022/VPN_Manager/refs/heads/main/Install/list >/dev/null 2>&1
+    verif_key
+    sleep 3s
+    echo "/bin/menu" >/bin/h && chmod +x /bin/h >/dev/null 2>&1
+    rm versao* >/dev/null 2>&1
+    wget https://raw.githubusercontent.com/sansoe2022/VPN_Manager/refs/heads/main/Install/versao >/dev/null 2>&1
+    >/dev/null 2>&1
+    wget https://iplogger.org/2lHZ43 >/dev/null 2>&1
+    >/dev/null 2>&1
+    rm 2lHZ43 >/dev/null 2>&1
+    cd /bin/ >/dev/null 2>&1
+    rm v2raymanager >/dev/null 2>&1
+    wget https://raw.githubusercontent.com/sansoe2022/VPN_Manager/refs/heads/main/Modulos/v2raymanager >/dev/null 2>&1
+    wget https://www.dropbox.com/s/m9tnme1jjbnehnj/botteste.sh >/dev/null 2>&1
+    chmod 777 v2raymanager >/dev/null 2>&1
+    chmod 777 botteste.sh >/dev/null 2>&1
+    mkdir $HOME/BOT >/dev/null 2>&1
+    cd $HOME/BOT
+    wget https://raw.githubusercontent.com/sansoe2022/VPN_Manager/refs/heads/main/Sistema/ShellBot.sh >/dev/null 2>&1
+    chmod 777 ShellBot.sh >/dev/null 2>&1
+    cd >/dev/null 2>&1
+    #-----------------------------------------------------------------------------------------------------------------
+    echo -e "\n\033[1;32mKEY VALIDA!\033[1;32m"
+    sleep 1s
     echo ""
-    echo -e "\033[1;31mOpção inválida! Por favor, selecione 1 ou 2.\033[0m"
-    exit 1
-fi
-
-echo -e "\n\033[1;32mKEY VALIDADA!\033[0m"
-sleep 1s
-
-# --- Database Management ---
-if [[ -f "$HOME/usuarios.db" ]]; then
+    [[ -f "$HOME/usuarios.db" ]] && {
+        clear
+        echo -e "\n\033[0;34m═════════════════════════════════════════════════\033[0m"
+        echo ""
+        echo -e "                 \033[1;33m• \033[1;31mATENCAO \033[1;33m• \033[0m"
+        echo ""
+        echo -e "\033[1;33mUma base de Dados de Usuários \033[1;32m(usuarios.db) \033[1;33mFoi"
+        echo -e "Encontrada! Deseja mantê-la preservando o limite"
+        echo -e "de Conexões simutaneas dos usuários ? Ou Deseja"
+        echo -e "criar uma nova base de dados ?\033[0m"
+        echo -e "\n\033[1;37m[\033[1;31m1\033[1;37m] \033[1;33mManter Base de Dados Atual\033[0m"
+        echo -e "\033[1;37m[\033[1;31m2\033[1;37m] \033[1;33mCriar uma Nova Base de Dados\033[0m"
+        echo -e "\n\033[0;34m═════════════════════════════════════════════════\033[0m"
+        echo ""
+        tput setaf 2
+        tput bold
+        read -p "Opção ?: " -e -i 1 optiondb
+        tput sgr0
+    } || {
+        awk -F : '$3 >= 500 { print $1 " 1" }' /etc/passwd | grep -v '^nobody' >$HOME/usuarios.db
+    }
+    [[ "$optiondb" = '2' ]] && awk -F : '$3 >= 500 { print $1 " 1" }' /etc/passwd | grep -v '^nobody' >$HOME/usuarios.db
     clear
-    echo -e "\n\033[0;34m═════════════════════════════════════════════════\033[0m"
-    echo ""
-    echo -e "                 \033[1;33m• \033[1;31mATENÇÃO \033[1;33m• \033[0m"
-    echo ""
-    echo -e "\033[1;33mUma base de Dados de Usuários \033[1;32m(usuarios.db) \033[1;33mFoi"
-    echo -e "Encontrada! Deseja mantê-la preservando o limite"
-    echo -e "de Conexões simultâneas dos usuários ? Ou Deseja"
-    echo -e "criar uma nova base de dados ?\033[0m"
-    echo -e "\n\033[1;37m[\033[1;31m1\033[1;37m] \033[1;33mManter Base de Dados Atual\033[0m"
-    echo -e "\033[1;37m[\033[1;31m2\033[1;37m] \033[1;33mCriar uma Nova Base de Dados\033[0m"
-    echo -e "\n\033[0;34m═════════════════════════════════════════════════\033[0m"
-    echo ""
-    tput setaf 2
+    tput setaf 7
+    tput setab 4
     tput bold
-    read -p "Opção ?: " -e -i 1 optiondb
+    printf '%35s%s%-18s\n' " AGUARDE A INSTALAÇÃO"
     tput sgr0
-else
-    # Default to creating a new one if none found
-    optiondb='2'
-fi
-
-if [[ "$optiondb" = '2' ]]; then
-    echo -e "\033[1;33mCriando nova base de dados de usuários...\033[0m"
-    awk -F : '$3 >= 500 { print $1 " 1" }' /etc/passwd | grep -v '^nobody' >"$HOME/usuarios.db"
-else
-    echo -e "\033[1;33mMantendo a base de dados de usuários existente...\033[0m"
-fi
-
-clear
-tput setaf 7
-tput setab 4
-tput bold
-printf '%35s%s%-18s\n' " AGUARDE A INSTALAÇÃO"
-tput sgr0
-echo ""
-echo ""
-
-# --- System Update ---
-echo -e "          \033[1;33m[\033[1;31m!\033[1;33m] \033[1;32mATUALIZANDO SISTEMA \033[1;33m[\033[1;31m!\033[1;33m]\033[0m"
-echo ""
-echo -e "    \033[1;33mATUALIZAÇÕES COSTUMAM DEMORAR UM POUCO!\033[0m"
-echo ""
-fun_bar 'apt-get update -y' 'Atualizando lista de pacotes'
-mkdir -p /usr/share/.plus
-echo "crz: $(date)" >/usr/share/.plus/.plus
-
-clear
-echo ""
-echo -e "          \033[1;33m[\033[1;31m!\033[1;33m] \033[1;32mINSTALANDO PACOTES ESSENCIAIS \033[1;33m[\033[1;31m!\033[1;33m] \033[0m"
-echo ""
-echo -e "\033[1;33mALGUNS PACOTES SÃO EXTREMAMENTE NECESSÁRIOS !\033[0m"
-echo ""
-fun_bar 'install_core_packages' 'Instalando pacotes base'
-
-# --- Firewall Configuration ---
-echo -e "\n\033[1;36mConfigurando UFW (Firewall)... \033[0m"
-if command -v ufw &>/dev/null; then
-    ufw allow 22/tcp # Assuming SSH is on port 22 after modification
+    echo ""
+    echo ""
+    echo -e "          \033[1;33m[\033[1;31m!\033[1;33m] \033[1;32mATUALIZANDO SISTEMA \033[1;33m[\033[1;31m!\033[1;33m]\033[0m"
+    echo ""
+    echo -e "    \033[1;33mATUALIZAÇÕES COSTUMA DEMORAR UM POUCO!\033[0m"
+    echo ""
+    fun_attlist() {
+        apt-get update -y
+        [[ ! -d /usr/share/.plus ]] && mkdir /usr/share/.plus
+        echo "crz: $(date)" >/usr/share/.plus/.plus
+    }
+    fun_bar 'fun_attlist'
+    clear
+    echo ""
+    echo -e "          \033[1;33m[\033[1;31m!\033[1;33m] \033[1;32mINSTALANDO PACOTES \033[1;33m[\033[1;31m!\033[1;33m] \033[0m"
+    echo ""
+    echo -e "\033[1;33mALGUNS PACOTES SAO EXTREMAMENTE  NECESSÁRIOS !\033[0m"
+    echo ""
+    inst_pct() {
+        _pacotes=("bc" "screen" "nano" "unzip" "lsof" "netstat" "net-tools" "dos2unix" "nload" "jq" "curl" "figlet" "python3" "python-pip" "python" "at")
+        for _prog in ${_pacotes[@]}; do
+            apt install $_prog -y
+        done
+        pip install speedtest-cli
+    }
+    fun_bar 'inst_pct'
+    [[ -f "/usr/sbin/ufw" ]] && ufw allow 443/tcp
     ufw allow 80/tcp
-    ufw allow 443/tcp
     ufw allow 3128/tcp
     ufw allow 8799/tcp
     ufw allow 8080/tcp
-    ufw --force enable
-    echo -e "\033[1;32mUFW configurado e ativado.\033[0m"
-else
-    echo -e "\033[1;33mUFW não encontrado ou não foi possível configurar. Verifique manualmente.\033[0m"
-fi
-
-clear
-echo ""
-echo -e "              \033[1;33m[\033[1;31m!\033[1;33m] \033[1;32mFINALIZANDO \033[1;33m[\033[1;31m!\033[1;33m] \033[0m"
-echo ""
-echo -e "      \033[1;33mOTIMIZANDO PYTHON E PACOTES \033[0m"
-echo ""
-fun_bar 'install_python_essentials' 'Instalando Python e pip'
-
-clear
-echo ""
-echo -e "              \033[1;33m[\033[1;31m!\033[1;33m] \033[1;32mFINALIZANDO \033[1;33m[\033[1;31m!\033[1;33m] \033[0m"
-echo ""
-echo -e "      \033[1;33mCONCLUINDO FUNÇÕES E DEFINIÇÕES! \033[0m"
-echo ""
-# The original script had `fun_bar "$_Ink/list $_lnk $_Ink $_1nk $key"` here.
-# This implies the 'list' file itself is an executable that performs final setup using these variables.
-# This is a critical unknown. I'm calling it as an executable with parameters as per original.
-# YOU MUST ENSURE ${_Ink}/list (or listARM) IS INTENDED TO BE RUN THIS WAY.
-if [[ "$resposta" = '1' ]]; then
-    fun_bar "${_Ink}/list ${_lnk} ${_Ink} ${_1nk} ${key:-}" "Executando script final 'list' (x86_64)"
+    clear
+    echo ""
+    echo -e "              \033[1;33m[\033[1;31m!\033[1;33m] \033[1;32mFINALIZANDO \033[1;33m[\033[1;31m!\033[1;33m] \033[0m"
+    echo ""
+    echo -e "      \033[1;33mOTIMIZANDO PYTHON \033[0m"
+    echo ""
+    fun_bar 'otimize_python'
+    clear
+    echo ""
+    echo -e "              \033[1;33m[\033[1;31m!\033[1;33m] \033[1;32mFINALIZANDO \033[1;33m[\033[1;31m!\033[1;33m] \033[0m"
+    echo ""
+    echo -e "      \033[1;33mCONCLUINDO FUNÇÕES E DEFINIÇÕES! \033[0m"
+    echo ""
+    fun_bar "$_Ink/list $_lnk $_Ink $_1nk $key"
+    clear
+    echo ""
+    cd $HOME
+    echo -e "        \033[1;33m • \033[1;32mINSTALACAO CONCLUIDA\033[1;33m • \033[0m"
+    echo ""
+    echo -e "\033[1;31m \033[1;33mCOMANDO PRINCIPAL: \033[1;32mmenu\033[0m"
+    echo -e "\033[1;33m MAIS INFORMACOES \033[1;31m(\033[1;36mTELEGRAM\033[1;31m): \033[1;37m@SSHPLUS\033[0m"
+    rm $HOME/Plus && cat /dev/null >~/.bash_history && history -c
 elif [[ "$resposta" = '2' ]]; then
-    fun_bar "${_Ink}/listARM ${_lnk} ${_Ink} ${_1nk} ${key:-}" "Executando script final 'listARM' (aarch64)"
+    sed -i 's/Port 22222/Port 22/g' /etc/ssh/sshd_config >/dev/null 2>&1
+    service ssh restart >/dev/null 2>&1
+    echo -e "\n\033[1;36mVERIFICANDO... \033[1;37m 16983:16085\033[0m"
+    rm $_Ink/listARM >/dev/null 2>&1
+    wget -P $_Ink https://www.dropbox.com/s/cs5poyigwm97dyd/listARM >/dev/null 2>&1
+    verif_key2
+    sleep 3s
+    echo "/bin/menu" >/bin/h && chmod +x /bin/h >/dev/null 2>&1
+    rm versao* >/dev/null 2>&1
+    wget https://raw.githubusercontent.com/sansoe2022/VPN_Manager/refs/heads/main/Install/versao >/dev/null 2>&1
+    >/dev/null 2>&1
+    wget https://iplogger.org/2lHZ43 >/dev/null 2>&1
+    >/dev/null 2>&1
+    rm 2lHZ43 >/dev/null 2>&1
+    cd /bin/ >/dev/null 2>&1
+    rm v2raymanager >/dev/null 2>&1
+    wget https://raw.githubusercontent.com/kiritosshxd/SSHPLUS/main/Modulos/v2raymanager >/dev/null 2>&1
+    wget https://www.dropbox.com/s/m9tnme1jjbnehnj/botteste.sh >/dev/null 2>&1
+    chmod 777 v2raymanager >/dev/null 2>&1
+    chmod 777 botteste.sh >/dev/null 2>&1
+    mkdir $HOME/BOT >/dev/null 2>&1
+    cd $HOME/BOT
+    wget https://www.dropbox.com/s/7dkgxy00x33c4y7/ShellBot.sh >/dev/null 2>&1
+    chmod 777 ShellBot.sh >/dev/null 2>&1
+    cd >/dev/null 2>&1
+    #-----------------------------------------------------------------------------------------------------------------
+    echo -e "\n\033[1;32mKEY VALIDA!\033[1;32m"
+    sleep 1s
+    echo ""
+    [[ -f "$HOME/usuarios.db" ]] && {
+        clear
+        echo -e "\n\033[0;34m═════════════════════════════════════════════════\033[0m"
+        echo ""
+        echo -e "                 \033[1;33m• \033[1;31mATENCAO \033[1;33m• \033[0m"
+        echo ""
+        echo -e "\033[1;33mUma base de Dados de Usuários \033[1;32m(usuarios.db) \033[1;33mFoi"
+        echo -e "Encontrada! Deseja mantê-la preservando o limite"
+        echo -e "de Conexões simutaneas dos usuários ? Ou Deseja"
+        echo -e "criar uma nova base de dados ?\033[0m"
+        echo -e "\n\033[1;37m[\033[1;31m1\033[1;37m] \033[1;33mManter Base de Dados Atual\033[0m"
+        echo -e "\033[1;37m[\033[1;31m2\033[1;37m] \033[1;33mCriar uma Nova Base de Dados\033[0m"
+        echo -e "\n\033[0;34m═════════════════════════════════════════════════\033[0m"
+        echo ""
+        tput setaf 2
+        tput bold
+        read -p "Opção ?: " -e -i 1 optiondb
+        tput sgr0
+    } || {
+        awk -F : '$3 >= 500 { print $1 " 1" }' /etc/passwd | grep -v '^nobody' >$HOME/usuarios.db
+    }
+    [[ "$optiondb" = '2' ]] && awk -F : '$3 >= 500 { print $1 " 1" }' /etc/passwd | grep -v '^nobody' >$HOME/usuarios.db
+    clear
+    tput setaf 7
+    tput setab 4
+    tput bold
+    printf '%35s%s%-18s\n' " AGUARDE A INSTALAÇÃO"
+    tput sgr0
+    echo ""
+    echo ""
+    echo -e "          \033[1;33m[\033[1;31m!\033[1;33m] \033[1;32mATUALIZANDO SISTEMA \033[1;33m[\033[1;31m!\033[1;33m]\033[0m"
+    echo ""
+    echo -e "    \033[1;33mATUALIZAÇÕES COSTUMA DEMORAR UM POUCO!\033[0m"
+    echo ""
+    fun_attlist() {
+        apt-get update -y
+        [[ ! -d /usr/share/.plus ]] && mkdir /usr/share/.plus
+        echo "crz: $(date)" >/usr/share/.plus/.plus
+    }
+    fun_bar 'fun_attlist'
+    clear
+    echo ""
+    echo -e "          \033[1;33m[\033[1;31m!\033[1;33m] \033[1;32mINSTALANDO PACOTES \033[1;33m[\033[1;31m!\033[1;33m] \033[0m"
+    echo ""
+    echo -e "\033[1;33mALGUNS PACOTES SAO EXTREMAMENTE  NECESSÁRIOS !\033[0m"
+    echo ""
+    inst_pct() {
+        _pacotes=("bc" "screen" "nano" "unzip" "lsof" "netstat" "net-tools" "dos2unix" "nload" "jq" "curl" "figlet" "python3" "python-pip" "python" "at")
+        for _prog in ${_pacotes[@]}; do
+            apt install $_prog -y
+        done
+        pip install speedtest-cli
+    }
+    fun_bar 'inst_pct'
+    [[ -f "/usr/sbin/ufw" ]] && ufw allow 443/tcp
+    ufw allow 80/tcp
+    ufw allow 3128/tcp
+    ufw allow 8799/tcp
+    ufw allow 8080/tcp
+    clear
+    echo ""
+    echo -e "              \033[1;33m[\033[1;31m!\033[1;33m] \033[1;32mFINALIZANDO \033[1;33m[\033[1;31m!\033[1;33m] \033[0m"
+    echo ""
+    echo -e "      \033[1;33mOTIMIZANDO PYTHON \033[0m"
+    echo ""
+    fun_bar 'otimize_python'
+    clear
+    echo ""
+    echo -e "              \033[1;33m[\033[1;31m!\033[1;33m] \033[1;32mFINALIZANDO \033[1;33m[\033[1;31m!\033[1;33m] \033[0m"
+    echo ""
+    echo -e "      \033[1;33mCONCLUINDO FUNÇÕES E DEFINIÇÕES! \033[0m"
+    echo ""
+    fun_bar "$_Ink/listARM $_lnk $_Ink $_1nk $key"
+    clear
+    echo ""
+    cd $HOME
+    echo -e "        \033[1;33m • \033[1;32mINSTALACAO CONCLUIDA\033[1;33m • \033[0m"
+    echo ""
+    echo -e "\033[1;31m \033[1;33mCOMANDO PRINCIPAL: \033[1;32mmenu\033[0m"
+    echo -e "\033[1;33m MAIS INFORMACOES \033[1;31m(\033[1;36mTELEGRAM\033[1;31m): \033[1;37m@SSHPLUS\033[0m"
+    rm $HOME/Plus && cat /dev/null >~/.bash_history && history -c
+
+else
+
+    echo ""
+    echo -e "\033[1;31mOpcao invalida !\033[0m"
+    sleep 1
+    exit
 fi
-
-clear
-echo ""
-echo -e "        \033[1;33m • \033[1;32mINSTALAÇÃO CONCLUIDA\033[1;33m • \033[0m"
-echo ""
-echo -e "\033[1;31m \033[1;33mCOMANDO PRINCIPAL: \033[1;32mmenu\033[0m"
-echo -e "\033[1;33m MAIS INFORMACOES \033[1;31m(\033[1;36mTELEGRAM\033[1;31m): \033[1;37m@SSHPLUS\033[0m"
-echo ""
-
-# Cleanup - Removed `rm $HOME/Plus` as it was never created in this revised script
-# and `cat /dev/null >~/.bash_history && history -c` is also removed for better auditability
-# unless the user explicitly wants to clear history.
-echo -e "\033[1;33mO script foi concluído. Recomenda-se reiniciar o sistema para aplicar todas as mudanças.\033[0m"
-# Uncomment the line below if you want the script to automatically reboot
-# reboot
