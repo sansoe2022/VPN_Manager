@@ -59,26 +59,10 @@ function verif_key2() {
 }
 
 otimize_python() {
-    # INSTALA PYTHON AO PYTHON2
-    apt-get install python -y >/dev/null 2>&1
-    apt-get install python2 -y >/dev/null 2>&1
-    # INSTALA PYTHON3.6 AO PYTHON3.9
-    apt-get install python3.6 -y >/dev/null 2>&1
-    apt-get install python3.7 -y >/dev/null 2>&1
-    apt-get install python3.8 -y >/dev/null 2>&1
-    apt-get install python3.9 -y >/dev/null 2>&1
-    # CRIA ALTERNATIVAS PYTHON
-    update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.6 1 >/dev/null 2>&1
-    update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.8 3 >/dev/null 2>&1
-    update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.7 2 >/dev/null 2>&1
-    update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.9 4 >/dev/null 2>&1
-    # INSTALA PIP
-    apt install pip -y
-    apt install python3-pip -y
+    # INSTALA PYTHON3 and PIP
+    apt-get install python3 python3-pip -y >/dev/null 2>&1
     # INSTALA SOCAT
     apt install socat -y
-    #SETAR PYTHON3
-    update-alternatives --set python3 /usr/bin/python3.6
 }
 echo -e "\033[1;31m════════════════════════════════════════════════════\033[0m"
 tput setaf 7
@@ -107,9 +91,9 @@ echo -e "[1] - x86_64"
 echo -e "[2] - aarch64(ARM)"
 echo -ne "\033[1;36mOpção: \033[1;37m"
 read resposta
-if [[ "$resposta" = '1' ]]; then
+if [[ "$resposta" = "1" ]]; then
     sed -i 's/Port 22222/Port 22/g' /etc/ssh/sshd_config >/dev/null 2>&1
-    service ssh restart >/dev/null 2>&1
+    systemctl restart ssh >/dev/null 2>&1
     mkdir /etc/rec >/dev/null 2>&1
     echo -e "\n\033[1;36mVERIFICANDO... \033[1;37m 16983:16085\033[0m"
     rm $_Ink/list >/dev/null 2>&1
@@ -185,11 +169,11 @@ if [[ "$resposta" = '1' ]]; then
     echo -e "\033[1;33mALGUNS PACOTES SAO EXTREMAMENTE  NECESSÁRIOS !\033[0m"
     echo ""
     inst_pct() {
-        _pacotes=("bc" "screen" "nano" "unzip" "lsof" "netstat" "net-tools" "dos2unix" "nload" "jq" "curl" "figlet" "python3" "python-pip" "python" "at")
+        _pacotes=("bc" "screen" "nano" "unzip" "lsof" "netstat" "net-tools" "dos2unix" "nload" "jq" "curl" "figlet" "python3" "python3-pip" "at")
         for _prog in ${_pacotes[@]}; do
             apt install $_prog -y
         done
-        pip install speedtest-cli
+        pip3 install speedtest-cli
     }
     fun_bar 'inst_pct'
     [[ -f "/usr/sbin/ufw" ]] && ufw allow 443/tcp
@@ -221,7 +205,7 @@ if [[ "$resposta" = '1' ]]; then
     rm $HOME/Plus && cat /dev/null >~/.bash_history && history -c
 elif [[ "$resposta" = '2' ]]; then
     sed -i 's/Port 22222/Port 22/g' /etc/ssh/sshd_config >/dev/null 2>&1
-    service ssh restart >/dev/null 2>&1
+    systemctl restart ssh >/dev/null 2>&1
     echo -e "\n\033[1;36mVERIFICANDO... \033[1;37m 16983:16085\033[0m"
     rm $_Ink/listARM >/dev/null 2>&1
     wget -P $_Ink https://www.dropbox.com/s/cs5poyigwm97dyd/listARM >/dev/null 2>&1
@@ -296,11 +280,11 @@ elif [[ "$resposta" = '2' ]]; then
     echo -e "\033[1;33mALGUNS PACOTES SAO EXTREMAMENTE  NECESSÁRIOS !\033[0m"
     echo ""
     inst_pct() {
-        _pacotes=("bc" "screen" "nano" "unzip" "lsof" "netstat" "net-tools" "dos2unix" "nload" "jq" "curl" "figlet" "python3" "python-pip" "python" "at")
+        _pacotes=("bc" "screen" "nano" "unzip" "lsof" "netstat" "net-tools" "dos2unix" "nload" "jq" "curl" "figlet" "python3" "python3-pip" "at")
         for _prog in ${_pacotes[@]}; do
             apt install $_prog -y
         done
-        pip install speedtest-cli
+        pip3 install speedtest-cli
     }
     fun_bar 'inst_pct'
     [[ -f "/usr/sbin/ufw" ]] && ufw allow 443/tcp
