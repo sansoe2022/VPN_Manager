@@ -334,7 +334,7 @@ inst_sqd() {
 		fi
 	}
 
-inst_ssl() {
+	inst_ssl() {
 		if systemctl is-active --quiet stunnel4 2>/dev/null; then
 			sslt=$(ss -tlpn 2>/dev/null | grep 'stunnel' | awk '{print $4}' | cut -d: -f2 | xargs)
 			[[ -z "$sslt" ]] && sslt="\033[1;31mINDISPONIVEL"
@@ -565,7 +565,7 @@ inst_ssl() {
 				verif_ptrs 443
 				fun_instsslh() {
 					[[ -e "/etc/stunnel/stunnel.conf" ]] && ptssl="$(ss -tlpn 2>/dev/null | grep 'stunnel' | awk '{print $4}' | cut -d: -f2 | xargs)" || ptssl='3128'
-					[[ -e "/etc/openvpn/server/server.conf" ]] && ptvpn="$(ss -tlpn 2>/dev/null | grep 'openvpn' | awk '{print $4}' | cut -d: -f2 | xargs)" || ptvpn='1194'
+					[[ -e "/etc/openvpn/server.conf" ]] && ptvpn="$(ss -tlpn 2>/dev/null | grep 'openvpn' | awk '{print $4}' | cut -d: -f2 | xargs)" || ptvpn='1194'
 					DEBIAN_FRONTEND=noninteractive apt-get -y install sslh
 					echo -e "#Modo autónomo\n\nRUN=yes\n\nDAEMON=/usr/sbin/sslh\n\nDAEMON_OPTS='--user sslh --listen 0.0.0.0:443 --ssh 127.0.0.1:22 --ssl 127.0.0.1:$ptssl --http 127.0.0.1:80 --openvpn 127.0.0.1:$ptvpn --pidfile /var/run/sslh/sslh.pid'" >/etc/default/sslh
 					systemctl start sslh
@@ -638,18 +638,18 @@ fun_openvpn() {
 		fi
 		
 		newclient() {
-			cp /etc/openvpn/server/client-common.txt ~/$1.ovpn
+			cp /etc/openvpn/client-common.txt ~/$1.ovpn
 			echo "<ca>" >>~/$1.ovpn
-			cat /etc/openvpn/server/easy-rsa/pki/ca.crt >>~/$1.ovpn
+			cat /etc/openvpn/easy-rsa/pki/ca.crt >>~/$1.ovpn
 			echo "</ca>" >>~/$1.ovpn
 			echo "<cert>" >>~/$1.ovpn
-			sed -ne '/BEGIN CERTIFICATE/,$ p' /etc/openvpn/server/easy-rsa/pki/issued/$1.crt >>~/$1.ovpn
+			sed -ne '/BEGIN CERTIFICATE/,$ p' /etc/openvpn/easy-rsa/pki/issued/$1.crt >>~/$1.ovpn
 			echo "</cert>" >>~/$1.ovpn
 			echo "<key>" >>~/$1.ovpn
-			cat /etc/openvpn/server/easy-rsa/pki/private/$1.key >>~/$1.ovpn
+			cat /etc/openvpn/easy-rsa/pki/private/$1.key >>~/$1.ovpn
 			echo "</key>" >>~/$1.ovpn
 			echo "<tls-crypt>" >>~/$1.ovpn
-			cat /etc/openvpn/server/ta.key >>~/$1.ovpn
+			cat /etc/openvpn/ta.key >>~/$1.ovpn
 			echo "</tls-crypt>" >>~/$1.ovpn
 		}
 		
@@ -658,14 +658,14 @@ fun_openvpn() {
 		[[ "$IP1" = "" ]] && IP1=$(hostname -I | cut -d' ' -f1)
 		[[ "$IP1" != "$IP2" ]] && IP="$IP1" || IP="$IP2"
 		
-		if [[ $(systemctl is-active openvpn-server@server 2>/dev/null) == "active" ]]; then
+		if [[ $(systemctl is-active openvpn@server 2>/dev/null) == "active" ]]; then
 			while :; do
 				clear
-				opnp=$(grep "^port" /etc/openvpn/server/server.conf 2>/dev/null | awk '{print $2}')
+				opnp=$(grep "^port" /etc/openvpn/server.conf 2>/dev/null | awk '{print $2}')
 				[[ -z "$opnp" ]] && opnp="1194"
 				
 				[[ -d /var/www/html/openvpn ]] && ovpnweb="\033[1;32m◉ " || ovpnweb="\033[1;31m○ "
-				grep -q "duplicate-cn" /etc/openvpn/server/server.conf 2>/dev/null && mult="\033[1;32m◉ " || mult="\033[1;31m○ "
+				grep -q "duplicate-cn" /etc/openvpn/server.conf 2>/dev/null && mult="\033[1;32m◉ " || mult="\033[1;31m○ "
 				
 				echo -e "\E[44;1;37m          GERENCIAR OPENVPN           \E[0m"
 				echo ""
@@ -700,12 +700,12 @@ fun_openvpn() {
 					echo -e "\033[1;32mALTERANDO A PORTA OPENVPN!\033[1;33m"
 					echo ""
 					fun_opn() {
-						sed -i "s/^port .*/port $porta/" /etc/openvpn/server/server.conf
+						sed -i "s/^port .*/port $porta/" /etc/openvpn/server.conf
 						sleep 1
-						var_ptovpn2=$(sed -n '3 p' /etc/openvpn/server/client-common.txt 2>/dev/null | awk '{print $3}')
-						sed -i "s/\b$var_ptovpn2\b/$porta/g" /etc/openvpn/server/client-common.txt
+						var_ptovpn2=$(sed -n '3 p' /etc/openvpn/client-common.txt 2>/dev/null | awk '{print $3}')
+						sed -i "s/\b$var_ptovpn2\b/$porta/g" /etc/openvpn/client-common.txt
 						sleep 1
-						systemctl restart openvpn-server@server
+						systemctl restart openvpn@server
 					}
 					fun_bar 'fun_opn'
 					echo ""
@@ -718,11 +718,11 @@ fun_openvpn() {
 					read REMOVE
 					[[ "$REMOVE" = 's' ]] && {
 						rmv_open() {
-							PORT=$(grep '^port ' /etc/openvpn/server/server.conf 2>/dev/null | cut -d " " -f 2)
-							PROTOCOL=$(grep '^proto ' /etc/openvpn/server/server.conf 2>/dev/null | cut -d " " -f 2)
+							PORT=$(grep '^port ' /etc/openvpn/server.conf 2>/dev/null | cut -d " " -f 2)
+							PROTOCOL=$(grep '^proto ' /etc/openvpn/server.conf 2>/dev/null | cut -d " " -f 2)
 							
-							systemctl stop openvpn-server@server
-							systemctl disable openvpn-server@server
+							systemctl stop openvpn@server
+							systemctl disable openvpn@server
 							
 							NIC=$(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)' | head -1)
 							if iptables -L -n | grep -qE 'REJECT|DROP|ACCEPT'; then
@@ -788,12 +788,12 @@ fun_openvpn() {
 					}
 					;;
 				4)
-					if grep -q "duplicate-cn" /etc/openvpn/server/server.conf 2>/dev/null; then
+					if grep -q "duplicate-cn" /etc/openvpn/server.conf 2>/dev/null; then
 						clear
 						fun_multon() {
-							sed -i '/duplicate-cn/d' /etc/openvpn/server/server.conf
+							sed -i '/duplicate-cn/d' /etc/openvpn/server.conf
 							sleep 1.5s
-							systemctl restart openvpn-server@server
+							systemctl restart openvpn@server
 							sleep 2
 						}
 						echo ""
@@ -805,10 +805,10 @@ fun_openvpn() {
 					else
 						clear
 						fun_multoff() {
-							grep -v "^duplicate-cn" /etc/openvpn/server/server.conf > /tmp/tmpass && mv /tmp/tmpass /etc/openvpn/server/server.conf
-							echo "duplicate-cn" >> /etc/openvpn/server/server.conf
+							grep -v "^duplicate-cn" /etc/openvpn/server.conf > /tmp/tmpass && mv /tmp/tmpass /etc/openvpn/server.conf
+							echo "duplicate-cn" >> /etc/openvpn/server.conf
 							sleep 1.5s
-							systemctl restart openvpn-server@server
+							systemctl restart openvpn@server
 						}
 						echo ""
 						echo -e "\033[1;32mPERMITINDO MULTILOGIN...\033[0m"
@@ -975,20 +975,20 @@ fun_openvpn() {
 			}
 			fun_bar 'fun_instdep'
 			
-			mkdir -p /etc/openvpn/server/easy-rsa/
+			mkdir -p /etc/openvpn/easy-rsa/
 			
 			echo ""
 			fun_dep() {
 				if [[ -d /usr/share/easy-rsa ]]; then
-					ln -s /usr/share/easy-rsa/* /etc/openvpn/server/easy-rsa/ 2>/dev/null
+					ln -s /usr/share/easy-rsa/* /etc/openvpn/easy-rsa/ 2>/dev/null
 				else
 					wget -O ~/EasyRSA.tgz "https://github.com/OpenVPN/easy-rsa/releases/download/v3.1.7/EasyRSA-3.1.7.tgz" 2>/dev/null
 					tar xzf ~/EasyRSA.tgz -C ~/
-					mv ~/EasyRSA-3.1.7/* /etc/openvpn/server/easy-rsa/
+					mv ~/EasyRSA-3.1.7/* /etc/openvpn/easy-rsa/
 					rm -rf ~/EasyRSA.tgz ~/EasyRSA-3.1.7
 				fi
 				
-				cd /etc/openvpn/server/easy-rsa/
+				cd /etc/openvpn/easy-rsa/
 				./easyrsa --batch init-pki
 				./easyrsa --batch build-ca nopass
 				./easyrsa --batch gen-dh
@@ -996,11 +996,11 @@ fun_openvpn() {
 				./easyrsa --batch build-client-full SSHPLUS nopass
 				EASYRSA_CRL_DAYS=3650 ./easyrsa --batch gen-crl
 				
-				cp pki/ca.crt pki/private/ca.key pki/dh.pem pki/issued/server.crt pki/private/server.key pki/crl.pem /etc/openvpn/server/
-				chown nobody:$GROUPNAME /etc/openvpn/server/crl.pem
-				chmod 644 /etc/openvpn/server/crl.pem
+				cp pki/ca.crt pki/private/ca.key pki/dh.pem pki/issued/server.crt pki/private/server.key pki/crl.pem /etc/openvpn/
+				chown nobody:$GROUPNAME /etc/openvpn/crl.pem
+				chmod 644 /etc/openvpn/crl.pem
 				
-				openvpn --genkey secret /etc/openvpn/server/ta.key
+				openvpn --genkey secret /etc/openvpn/ta.key
 				
 				echo "port $porta
 proto $PROTOCOL
@@ -1012,35 +1012,35 @@ dh dh.pem
 auth SHA512
 tls-crypt ta.key
 topology subnet
-server 10.8.0.0 255.255.255.0" > /etc/openvpn/server/server.conf
+server 10.8.0.0 255.255.255.0" > /etc/openvpn/server.conf
 				
-				echo 'push "redirect-gateway def1 bypass-dhcp"' >> /etc/openvpn/server/server.conf
+				echo 'push "redirect-gateway def1 bypass-dhcp"' >> /etc/openvpn/server.conf
 				
 				case $DNS in
 				1)
 					grep -v '^#\|^;' /etc/resolv.conf | grep 'nameserver' | grep -oE '[0-9]{1,3}(\.[0-9]{1,3}){3}' | while read line; do
-						echo "push \"dhcp-option DNS $line\"" >> /etc/openvpn/server/server.conf
+						echo "push \"dhcp-option DNS $line\"" >> /etc/openvpn/server.conf
 					done
 					;;
 				2)
-					echo 'push "dhcp-option DNS 8.8.8.8"' >> /etc/openvpn/server/server.conf
-					echo 'push "dhcp-option DNS 8.8.4.4"' >> /etc/openvpn/server/server.conf
+					echo 'push "dhcp-option DNS 8.8.8.8"' >> /etc/openvpn/server.conf
+					echo 'push "dhcp-option DNS 8.8.4.4"' >> /etc/openvpn/server.conf
 					;;
 				3)
-					echo 'push "dhcp-option DNS 208.67.222.222"' >> /etc/openvpn/server/server.conf
-					echo 'push "dhcp-option DNS 208.67.220.220"' >> /etc/openvpn/server/server.conf
+					echo 'push "dhcp-option DNS 208.67.222.222"' >> /etc/openvpn/server.conf
+					echo 'push "dhcp-option DNS 208.67.220.220"' >> /etc/openvpn/server.conf
 					;;
 				4)
-					echo 'push "dhcp-option DNS 1.1.1.1"' >> /etc/openvpn/server/server.conf
-					echo 'push "dhcp-option DNS 1.0.0.1"' >> /etc/openvpn/server/server.conf
+					echo 'push "dhcp-option DNS 1.1.1.1"' >> /etc/openvpn/server.conf
+					echo 'push "dhcp-option DNS 1.0.0.1"' >> /etc/openvpn/server.conf
 					;;
 				5)
-					echo 'push "dhcp-option DNS 9.9.9.9"' >> /etc/openvpn/server/server.conf
-					echo 'push "dhcp-option DNS 149.112.112.112"' >> /etc/openvpn/server/server.conf
+					echo 'push "dhcp-option DNS 9.9.9.9"' >> /etc/openvpn/server.conf
+					echo 'push "dhcp-option DNS 149.112.112.112"' >> /etc/openvpn/server.conf
 					;;
 				6)
-					echo 'push "dhcp-option DNS 94.140.14.14"' >> /etc/openvpn/server/server.conf
-					echo 'push "dhcp-option DNS 94.140.15.15"' >> /etc/openvpn/server/server.conf
+					echo 'push "dhcp-option DNS 94.140.14.14"' >> /etc/openvpn/server.conf
+					echo 'push "dhcp-option DNS 94.140.15.15"' >> /etc/openvpn/server.conf
 					;;
 				esac
 				
@@ -1056,7 +1056,7 @@ client-to-client
 client-cert-not-required
 username-as-common-name
 plugin /usr/lib/openvpn/openvpn-plugin-auth-pam.so login
-duplicate-cn" >> /etc/openvpn/server/server.conf
+duplicate-cn" >> /etc/openvpn/server.conf
 				
 				echo 'net.ipv4.ip_forward=1' > /etc/sysctl.d/99-openvpn.conf
 				sysctl -p /etc/sysctl.d/99-openvpn.conf
@@ -1078,8 +1078,8 @@ duplicate-cn" >> /etc/openvpn/server/server.conf
 			fun_bar 'fun_dep > /dev/null 2>&1'
 			
 			fun_ropen() {
-				systemctl enable openvpn-server@server
-				systemctl start openvpn-server@server
+				systemctl enable openvpn@server
+				systemctl start openvpn@server
 			}
 			
 			echo ""
@@ -1087,7 +1087,7 @@ duplicate-cn" >> /etc/openvpn/server/server.conf
 			echo ""
 			fun_bar 'fun_ropen'
 			
-			cat > /etc/openvpn/server/client-common.txt <<EOF
+			cat > /etc/openvpn/client-common.txt <<EOF
 client
 dev tun
 proto $PROTOCOL
@@ -1106,7 +1106,7 @@ EOF
 			
 			newclient "SSHPLUS"
 			
-			[[ $(systemctl is-active openvpn-server@server) == "active" ]] && echo -e "\n\033[1;32mOPENVPN INSTALADO COM SUCESSO\033[0m" || echo -e "\n\033[1;31mERRO ! A INSTALACAO CORROMPEU\033[0m"
+			[[ $(systemctl is-active openvpn@server) == "active" ]] && echo -e "\n\033[1;32mOPENVPN INSTALADO COM SUCESSO\033[0m" || echo -e "\n\033[1;31mERRO ! A INSTALACAO CORROMPEU\033[0m"
 		fi
 		
 		sleep 3
@@ -1178,13 +1178,13 @@ fun_socks() {
 				verif_ptrs $porta
 				fun_inisocks() {
 					sleep 1
-					screen -dmS proxy python /etc/SSHPlus/proxy.py $porta
+					screen -dmS proxy python3 /etc/SSHPlus/proxy.py $porta
 					[[ ! -f /etc/autostart ]] && touch /etc/autostart
 					[[ $(grep -wc "proxy.py" /etc/autostart) = '0' ]] && {
-						echo -e "ss -tlpn | grep -w $porta > /dev/null || { screen -r -S 'proxy' -X quit; screen -dmS proxy python /etc/SSHPlus/proxy.py $porta; }" >>/etc/autostart
+						echo -e "ss -tlpn | grep -w $porta > /dev/null || { screen -r -S 'proxy' -X quit; screen -dmS proxy python3 /etc/SSHPlus/proxy.py $porta; }" >>/etc/autostart
 					} || {
 						sed -i '/proxy.py/d' /etc/autostart
-						echo -e "ss -tlpn | grep -w $porta > /dev/null || { screen -r -S 'proxy' -X quit; screen -dmS proxy python /etc/SSHPlus/proxy.py $porta; }" >>/etc/autostart
+						echo -e "ss -tlpn | grep -w $porta > /dev/null || { screen -r -S 'proxy' -X quit; screen -dmS proxy python3 /etc/SSHPlus/proxy.py $porta; }" >>/etc/autostart
 					}
 				}
 				echo ""
@@ -1234,13 +1234,13 @@ fun_socks() {
 				verif_ptrs $porta
 				fun_iniwssocks() {
 					sleep 1
-					screen -dmS ws python /etc/SSHPlus/wsproxy.py $porta
+					screen -dmS ws python3 /etc/SSHPlus/wsproxy.py $porta
 					[[ ! -f /etc/autostart ]] && touch /etc/autostart
 					[[ $(grep -wc "wsproxy.py" /etc/autostart) = '0' ]] && {
-						echo -e "ss -tlpn | grep -w $porta > /dev/null || { screen -r -S 'ws' -X quit; screen -dmS ws python /etc/SSHPlus/wsproxy.py $porta; }" >>/etc/autostart
+						echo -e "ss -tlpn | grep -w $porta > /dev/null || { screen -r -S 'ws' -X quit; screen -dmS ws python3 /etc/SSHPlus/wsproxy.py $porta; }" >>/etc/autostart
 					} || {
 						sed -i '/wsproxy.py/d' /etc/autostart
-						echo -e "ss -tlpn | grep -w $porta > /dev/null || { screen -r -S 'ws' -X quit; screen -dmS ws python /etc/SSHPlus/wsproxy.py $porta; }" >>/etc/autostart
+						echo -e "ss -tlpn | grep -w $porta > /dev/null || { screen -r -S 'ws' -X quit; screen -dmS ws python3 /etc/SSHPlus/wsproxy.py $porta; }" >>/etc/autostart
 					}
 				}
 				echo ""
@@ -1295,13 +1295,13 @@ fun_socks() {
 						sed -i "s/$listoldop/$listopen/" /etc/SSHPlus/open.py
 					fi
 					sleep 1
-					screen -dmS openpy python /etc/SSHPlus/open.py $porta
+					screen -dmS openpy python3 /etc/SSHPlus/open.py $porta
 					[[ ! -f /etc/autostart ]] && touch /etc/autostart
 					[[ $(grep -wc "open.py" /etc/autostart) = '0' ]] && {
-						echo -e "ss -tlpn | grep -w $porta > /dev/null || { screen -r -S 'openpy' -X quit; screen -dmS openpy python /etc/SSHPlus/open.py $porta; }" >>/etc/autostart
+						echo -e "ss -tlpn | grep -w $porta > /dev/null || { screen -r -S 'openpy' -X quit; screen -dmS openpy python3 /etc/SSHPlus/open.py $porta; }" >>/etc/autostart
 					} || {
 						sed -i '/open.py/d' /etc/autostart
-						echo -e "ss -tlpn | grep -w $porta > /dev/null || { screen -r -S 'openpy' -X quit; screen -dmS openpy python /etc/SSHPlus/open.py $porta; }" >>/etc/autostart
+						echo -e "ss -tlpn | grep -w $porta > /dev/null || { screen -r -S 'openpy' -X quit; screen -dmS openpy python3 /etc/SSHPlus/open.py $porta; }" >>/etc/autostart
 					}
 				}
 				echo ""
@@ -1336,7 +1336,7 @@ fun_socks() {
 				echo ""
 				abrirptsks() {
 					sleep 1
-					screen -dmS proxy python /etc/SSHPlus/proxy.py $porta
+					screen -dmS proxy python3 /etc/SSHPlus/proxy.py $porta
 					sleep 1
 				}
 				fun_bar 'abrirptsks'
@@ -1373,8 +1373,8 @@ x="ok"
 			echo -e "\033[1;32mSERVICO: \033[1;33mOPENSSH \033[1;32mPORTA: \033[1;37m$(grep 'Port' /etc/ssh/sshd_config | cut -d' ' -f2 | grep -v 'no' | xargs)"
 			sts6="\033[1;32m◉ "
 			
-			[[ $(systemctl is-active openvpn-server@server 2>/dev/null) == "active" ]] && {
-				echo -e "\033[1;32mSERVICO: \033[1;33mOPENVPN: \033[1;32mPORTA: \033[1;37m$(grep '^port' /etc/openvpn/server/server.conf 2>/dev/null | awk '{print $2}')"
+			[[ $(systemctl is-active openvpn@server 2>/dev/null) == "active" ]] && {
+				echo -e "\033[1;32mSERVICO: \033[1;33mOPENVPN: \033[1;32mPORTA: \033[1;37m$(grep '^port' /etc/openvpn/server.conf 2>/dev/null | awk '{print $2}')"
 				sts5="\033[1;32m◉ "
 			} || {
 				sts5="\033[1;31m○ "
@@ -1434,8 +1434,6 @@ x="ok"
 			5 | 05) fun_socks ;;
 			6 | 06) inst_ssl ;;
 			7 | 07) fun_sslh ;;
-			8 | 08) fun_chisel ;;
-			9 | 09) slow_setup ;;
 			0 | 00)
 				echo -e "\033[1;31mSaindo...\033[0m"
 				sleep 2
