@@ -1277,6 +1277,12 @@ fun_openvpn() {
 		# Ubuntu 22.04 အတွက် အထူး installation
 		echo -e "\033[1;32mATUALIZANDO O SISTEMA"
 		echo ""
+
+echo ""
+if [[ "$OS" = 'debian' ]]; then
+    echo -e "\033[1;32mATUALIZANDO O SISTEMA"
+    echo ""
+
 		fun_attos() {
 			# ပြင်ဆင်ထားသော command: update-y မှ update -y
 			apt-get update -y
