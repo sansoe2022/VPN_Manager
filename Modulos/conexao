@@ -1366,7 +1366,7 @@ exit 0' >$RCLOCAL
 			}
 			echo -e "\033[1;32mINSTALANDO O OPENVPN  \033[1;31m(\033[1;33mPODE DEMORAR!\033[1;31m)"
 			echo ""
-			fun_bar 'fun_dep > /dev/null 2>&1'
+			fun_bar 'fun_dep'
 			fun_ropen() {
 				[[ "$OS" = 'debian' ]] && {
 					if pgrep systemd-journal; then
