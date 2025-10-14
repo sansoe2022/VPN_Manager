@@ -1202,7 +1202,10 @@ EOF
 
         echo -e "\033[1;32mINSTALANDO O OPENVPN  \033[1;31m(\033[1;33mPODE DEMORAR!\033[1;31m)"
         echo ""
-        fun_bar 'fun_dep > /dev/null 2>&1'
+        fun_bar 'fun_dep' || {
+    echo -e "\n\033[1;31mERRO durante a instalação do OpenVPN!\033[0m"
+    exit 1
+}
 
         fun_ropen() {
     # Wait for config file to be fully written
@@ -1256,7 +1259,11 @@ EOF
         echo ""
         echo -e "\033[1;32mREINICIANDO O OPENVPN"
         echo ""
-        fun_bar 'fun_ropen'
+        fun_bar 'fun_ropen' || {
+    echo -e "\n\033[1;31mERRO ao iniciar o OpenVPN!\033[0m"
+    echo "Verifique os logs com: journalctl -xeu openvpn-server@server.service"
+    exit 1
+}
 
         # re-evaluate external IP if necessary
         IP2=$(wget -4qO- "http://whatismyip.akamai.com/" 2>/dev/null || true)
