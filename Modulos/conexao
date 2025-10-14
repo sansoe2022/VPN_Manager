@@ -614,6 +614,7 @@ inst_sqd() {
 
 
             
+# Replace only the fun_openvpn() function in your Modulos/conexao script with the following improved version.
 
 fun_openvpn() {
     # Ensure running with bash (not dash/sh)
@@ -686,13 +687,37 @@ EOF
         local port="$2"
         # replace line starting with 'remote ' (host port) with new ip and port
         if [[ -f /etc/openvpn/client-common.txt ]]; then
-            sed -i -E "s|^remote[[:space:]]+\S+[[:space:]]+[0-9]+|remote ${ipa} ${port}|" /etc/openvpn/client-common.txt
+            # Try to replace a line like: remote <host> <port>
+            if grep -qE '^remote[[:space:]]+' /etc/openvpn/client-common.txt; then
+                sed -i -E "s|^remote[[:space:]]+\S+[[:space:]]+[0-9]+|remote ${ipa} ${port}|" /etc/openvpn/client-common.txt
+            else
+                # append if missing
+                echo "remote ${ipa} ${port}" >> /etc/openvpn/client-common.txt
+            fi
         fi
     }
 
     # helper: detect NIC in a portable way
     detect_nic() {
         ip -4 route ls default 2>/dev/null | awk '/default/ {print $5; exit}'
+    }
+
+    # helper: find openvpn auth plugin if available
+    find_auth_plugin() {
+        find /usr/lib /usr/local/lib -type f -name 'openvpn-plugin-auth-pam.so' 2>/dev/null | head -n1 || true
+    }
+
+    # helper: detect systemd service name to use
+    detect_openvpn_service() {
+        # candidate names
+        for s in "openvpn@server.service" "openvpn-server@server.service" "openvpn.service"; do
+            if systemctl list-unit-files --type=service 2>/dev/null | grep -q "^${s}"; then
+                echo "$s"
+                return 0
+            fi
+        done
+        # fallback: check active units containing 'openvpn'
+        systemctl --type=service --state=running | grep openvpn | awk '{print $1}' | head -n1 || echo "openvpn@server.service"
     }
 
     # When openvpn running -> manager menu
@@ -746,7 +771,9 @@ EOF
                     # replace client remote entry robustly
                     replace_client_remote "$IP" "$porta"
                     sleep 1
-                    systemctl restart openvpn@server 2>/dev/null || systemctl restart openvpn 2>/dev/null || true
+                    # detect service and restart safely
+                    svc=$(detect_openvpn_service)
+                    systemctl restart "$svc" 2>/dev/null || systemctl restart openvpn@server 2>/dev/null || true
                 }
                 fun_bar 'fun_opn'
                 echo ""
@@ -853,7 +880,8 @@ EOF
                     fun_multon() {
                         sed -i '/^duplicate-cn/d' /etc/openvpn/server.conf 2>/dev/null || true
                         sleep 1.5
-                        systemctl restart openvpn@server 2>/dev/null || true
+                        svc=$(detect_openvpn_service)
+                        systemctl restart "$svc" 2>/dev/null || true
                         sleep 2
                     }
                     fun_bar 'fun_multon'
@@ -867,7 +895,8 @@ EOF
                             echo "duplicate-cn" >> /etc/openvpn/server.conf
                         fi
                         sleep 1.5
-                        systemctl restart openvpn@server 2>/dev/null || true
+                        svc=$(detect_openvpn_service)
+                        systemctl restart "$svc" 2>/dev/null || true
                     }
                     fun_bar 'fun_multoff'
                     sleep 1
@@ -875,6 +904,7 @@ EOF
                 fi
                 ;;
             5)
+                # DNS host menu (unchanged)
                 clear
                 echo -e "\E[44;1;37m         ALTERAR HOST DNS           \E[0m"
                 echo ""
@@ -1049,20 +1079,34 @@ EOF
         echo ""
         fun_dep() {
             mkdir -p /etc/openvpn/easy-rsa
-            cp -r /usr/share/easy-rsa/* /etc/openvpn/easy-rsa/ 2>/dev/null || true
+            # compat: some distros place easy-rsa in /usr/share/easy-rsa
+            if [[ -d /usr/share/easy-rsa ]]; then
+                cp -r /usr/share/easy-rsa/* /etc/openvpn/easy-rsa/ 2>/dev/null || true
+            elif command -v easyrsa >/dev/null 2>&1; then
+                # try using easyrsa binary if available
+                easyrsa init-pki >/dev/null 2>&1 || true
+                # Note: this fallback may require manual handling
+            fi
             chown -R root:root /etc/openvpn/easy-rsa/
             cd /etc/openvpn/easy-rsa/ || return 1
-            ./easyrsa init-pki
-            ./easyrsa --batch build-ca nopass
-            ./easyrsa gen-dh
-            ./easyrsa build-server-full server nopass
-            ./easyrsa build-client-full SSHPLUS nopass
-            ./easyrsa gen-crl
+            ./easyrsa init-pki >/dev/null 2>&1 || true
+            ./easyrsa --batch build-ca nopass >/dev/null 2>&1 || true
+            ./easyrsa gen-dh >/dev/null 2>&1 || true
+            ./easyrsa build-server-full server nopass >/dev/null 2>&1 || true
+            ./easyrsa build-client-full SSHPLUS nopass >/dev/null 2>&1 || true
+            ./easyrsa gen-crl >/dev/null 2>&1 || true
             cp pki/ca.crt pki/private/ca.key pki/dh.pem pki/issued/server.crt pki/private/server.key pki/crl.pem /etc/openvpn 2>/dev/null || true
             chown nobody:nogroup /etc/openvpn/crl.pem 2>/dev/null || true
             openvpn --genkey secret /etc/openvpn/ta.key 2>/dev/null || true
 
-            # write server.conf
+            # plugin path detection
+            PLUGIN_PATH=$(find_auth_plugin)
+            if [[ -z "$PLUGIN_PATH" ]]; then
+                # fallback to common path
+                PLUGIN_PATH="/usr/lib/x86_64-linux-gnu/openvpn/plugins/openvpn-plugin-auth-pam.so"
+            fi
+
+            # write server.conf (use detected plugin path)
             cat > /etc/openvpn/server.conf <<EOF
 port $porta
 proto $PROTOCOL
@@ -1082,7 +1126,6 @@ EOF
 
             case $DNS in
             1)
-                # use resolv.conf nameservers
                 awk '/nameserver/ {print $2}' /etc/resolv.conf | while read -r line; do
                     echo "push \"dhcp-option DNS $line\"" >>/etc/openvpn/server.conf
                 done
@@ -1112,7 +1155,7 @@ EOF
                 ;;
             esac
 
-            cat >>/etc/openvpn/server.conf <<'EOF'
+            cat >>/etc/openvpn/server.conf <<EOF
 keepalive 10 120
 float
 cipher AES-256-CBC
@@ -1128,7 +1171,7 @@ crl-verify crl.pem
 client-to-client
 client-cert-not-required
 username-as-common-name
-plugin /usr/lib/x86_64-linux-gnu/openvpn/plugins/openvpn-plugin-auth-pam.so login
+plugin $PLUGIN_PATH login
 duplicate-cn
 EOF
 
@@ -1147,13 +1190,12 @@ EOF
             iptables -A FORWARD -m state --state RELATED,ESTABLISHED -j ACCEPT
             iptables -A INPUT -p $PROTOCOL --dport $porta -j ACCEPT
 
-            # persist rules using iptables-persistent
+            # persist rules using iptables-persistent or netfilter-persistent
             if command -v netfilter-persistent >/dev/null 2>&1; then
                 netfilter-persistent save >/dev/null 2>&1 || true
-            else
+            elif command -v iptables-save >/dev/null 2>&1; then
                 mkdir -p /etc/iptables
                 iptables-save > /etc/iptables.rules
-                # create a cron @reboot entry that uses root user
                 echo "@reboot root iptables-restore < /etc/iptables.rules" > /etc/cron.d/openvpn_iptables
             fi
         }
@@ -1163,8 +1205,9 @@ EOF
         fun_bar 'fun_dep > /dev/null 2>&1'
 
         fun_ropen() {
-            systemctl enable openvpn@server 2>/dev/null || true
-            systemctl start openvpn@server 2>/dev/null || systemctl start openvpn 2>/dev/null || true
+            svc=$(detect_openvpn_service)
+            systemctl enable "$svc" 2>/dev/null || true
+            systemctl start "$svc" 2>/dev/null || systemctl start openvpn@server 2>/dev/null || true
         }
 
         echo ""
@@ -1211,16 +1254,9 @@ EOF
         fi
     fi
 
-    # Clean /etc/rc.local additions: prefer persistent iptables via iptables-persistent/netfilter-persistent.
-    # If script still appends rules to /etc/rc.local elsewhere, ensure rc.local exists (we created it above).
-
     sleep 1
     fun_conexao
 }
-
-
-
-
 
 
 
