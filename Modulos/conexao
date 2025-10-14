@@ -1205,10 +1205,53 @@ EOF
         fun_bar 'fun_dep > /dev/null 2>&1'
 
         fun_ropen() {
-            svc=$(detect_openvpn_service)
-            systemctl enable "$svc" 2>/dev/null || true
-            systemctl start "$svc" 2>/dev/null || systemctl start openvpn@server 2>/dev/null || true
-        }
+    # Wait for config file to be fully written
+    sleep 2
+    
+    # Verify server.conf exists
+    if [[ ! -f /etc/openvpn/server.conf ]]; then
+        echo "ERROR: /etc/openvpn/server.conf not found!"
+        return 1
+    fi
+    
+    # Ubuntu 22.04 uses openvpn-server@.service template
+    # Try the correct service names in order
+    local service_started=0
+    
+    # Try openvpn-server@server first (Ubuntu 22.04 default)
+    if systemctl enable openvpn-server@server.service 2>&1; then
+        echo "Service enabled: openvpn-server@server.service"
+        if systemctl start openvpn-server@server.service 2>&1; then
+            echo "Service started successfully"
+            service_started=1
+        fi
+    fi
+    
+    # Fallback to openvpn@server if above failed
+    if [[ $service_started -eq 0 ]]; then
+        if systemctl enable openvpn@server.service 2>&1; then
+            echo "Service enabled: openvpn@server.service"
+            if systemctl start openvpn@server.service 2>&1; then
+                echo "Service started successfully"
+                service_started=1
+            fi
+        fi
+    fi
+    
+    # Check if service actually started
+    sleep 2
+    if systemctl is-active --quiet openvpn-server@server.service || \
+       systemctl is-active --quiet openvpn@server.service; then
+        echo "OpenVPN is running"
+        return 0
+    else
+        echo "ERROR: Failed to start OpenVPN service"
+        echo "Checking service status..."
+        systemctl status openvpn-server@server.service 2>&1 || \
+        systemctl status openvpn@server.service 2>&1
+        return 1
+    fi
+}
 
         echo ""
         echo -e "\033[1;32mREINICIANDO O OPENVPN"
