@@ -611,7 +611,11 @@ inst_sqd() {
 
 
 
-fun_openvpn() {
+
+
+
+			
+			fun_openvpn() {
 	if readlink /proc/$$/exe | grep -qs "dash"; then
 		echo "Este script precisa ser executado com bash, não sh"
 		exit 1
@@ -1185,7 +1189,7 @@ management localhost 7505
 verb 3
 crl-verify crl.pem
 client-to-client
-client-cert-not-required
+verify-client-cert none
 username-as-common-name
 plugin /usr/lib/x86_64-linux-gnu/openvpn/plugins/openvpn-plugin-auth-pam.so login
 duplicate-cn" >>/etc/openvpn/server/server.conf
@@ -1305,11 +1309,7 @@ exit 0' >$RCLOCAL
 	sed -i '$ i\iptables -A FORWARD -p tcp --dport 110 -j DROP' /etc/rc.local
 	sleep 3
 	fun_conexao
-}
-
-
-			
-						
+}			
 
 
 
