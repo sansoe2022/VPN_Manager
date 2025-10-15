@@ -615,7 +615,7 @@ inst_sqd() {
 
     fun_openvpn() {
 	if readlink /proc/$$/exe | grep -qs "dash"; then
-		echo "Este script precisa ser executado com bash, nÃ£o sh"
+		echo "Este script precisa ser executado com bash, não sh"
 		exit 1
 	fi
 	[[ "$EUID" -ne 0 ]] && {
@@ -629,7 +629,7 @@ inst_sqd() {
 		exit 3
 	}
 	if grep -qs "CentOS release 5" "/etc/redhat-release"; then
-		echo "O CentOS 5 Ã© muito antigo e nÃ£o Ã© suportado"
+		echo "O CentOS 5 é muito antigo e não é suportado"
 		exit 4
 	fi
 	if [[ -e /etc/debian_version ]]; then
@@ -676,25 +676,25 @@ inst_sqd() {
 
 			opnp=$(cat /etc/openvpn/server.conf | grep "port" | awk {'print $2'})
 			[[ -d /var/www/html/openvpn ]] && {
-				ovpnweb=$(echo -e "\033[1;32mâ—‰ ")
+				ovpnweb=$(echo -e "\033[1;32m◉ ")
 			} || {
-				ovpnweb=$(echo -e "\033[1;31mâ—‹ ")
+				ovpnweb=$(echo -e "\033[1;31m○ ")
 			}
 			if grep "duplicate-cn" /etc/openvpn/server.conf >/dev/null; then
-				mult=$(echo -e "\033[1;32mâ—‰ ")
+				mult=$(echo -e "\033[1;32m◉ ")
 			else
-				mult=$(echo -e "\033[1;31mâ—‹ ")
+				mult=$(echo -e "\033[1;31m○ ")
 			fi
 			echo -e "\E[44;1;37m          GERENCIAR OPENVPN           \E[0m"
 			echo ""
 			echo -e "\033[1;33mPORTA\033[1;37m: \033[1;32m$opnp"
 			echo ""
-			echo -e "\033[1;31m[\033[1;36m1\033[1;31m] \033[1;37mâ€¢ \033[1;33mALTERAR PORTA"
-			echo -e "\033[1;31m[\033[1;36m2\033[1;31m] \033[1;37mâ€¢ \033[1;33mREMOVER OPENVPN"
-			echo -e "\033[1;31m[\033[1;36m3\033[1;31m] \033[1;37mâ€¢ \033[1;33mOVPN VIA LINK $ovpnweb"
-			echo -e "\033[1;31m[\033[1;36m4\033[1;31m] \033[1;37mâ€¢ \033[1;33mMULTILOGIN OVPN $mult"
-			echo -e "\033[1;31m[\033[1;36m5\033[1;31m] \033[1;37mâ€¢ \033[1;33mALTERAR HOST DNS"
-			echo -e "\033[1;31m[\033[1;36m0\033[1;31m] \033[1;37mâ€¢ \033[1;33mVOLTAR"
+			echo -e "\033[1;31m[\033[1;36m1\033[1;31m] \033[1;37m• \033[1;33mALTERAR PORTA"
+			echo -e "\033[1;31m[\033[1;36m2\033[1;31m] \033[1;37m• \033[1;33mREMOVER OPENVPN"
+			echo -e "\033[1;31m[\033[1;36m3\033[1;31m] \033[1;37m• \033[1;33mOVPN VIA LINK $ovpnweb"
+			echo -e "\033[1;31m[\033[1;36m4\033[1;31m] \033[1;37m• \033[1;33mMULTILOGIN OVPN $mult"
+			echo -e "\033[1;31m[\033[1;36m5\033[1;31m] \033[1;37m• \033[1;33mALTERAR HOST DNS"
+			echo -e "\033[1;31m[\033[1;36m0\033[1;31m] \033[1;37m• \033[1;33mVOLTAR"
 			echo ""
 			echo -ne "\033[1;32mOQUE DESEJA FAZER \033[1;33m?\033[1;31m?\033[1;37m "
 			read option
@@ -916,10 +916,10 @@ inst_sqd() {
 				clear
 				echo -e "\E[44;1;37m         ALTERAR HOST DNS           \E[0m"
 				echo ""
-				echo -e "\033[1;31m[\033[1;36m1\033[1;31m] \033[1;37mâ€¢ \033[1;33mADICIONAR HOST DNS"
-				echo -e "\033[1;31m[\033[1;36m2\033[1;31m] \033[1;37mâ€¢ \033[1;33mREMOVER HOST DNS"
-				echo -e "\033[1;31m[\033[1;36m3\033[1;31m] \033[1;37mâ€¢ \033[1;33mEDITAR MANUALMENTE"
-				echo -e "\033[1;31m[\033[1;36m0\033[1;31m] \033[1;37mâ€¢ \033[1;33mVOLTAR"
+				echo -e "\033[1;31m[\033[1;36m1\033[1;31m] \033[1;37m• \033[1;33mADICIONAR HOST DNS"
+				echo -e "\033[1;31m[\033[1;36m2\033[1;31m] \033[1;37m• \033[1;33mREMOVER HOST DNS"
+				echo -e "\033[1;31m[\033[1;36m3\033[1;31m] \033[1;37m• \033[1;33mEDITAR MANUALMENTE"
+				echo -e "\033[1;31m[\033[1;36m0\033[1;31m] \033[1;37m• \033[1;33mVOLTAR"
 				echo ""
 				echo -ne "\033[1;32mOQUE DESEJA FAZER \033[1;33m?\033[1;31m?\033[1;37m "
 				read resp
@@ -949,7 +949,7 @@ inst_sqd() {
 						fun_openvpn
 					fi
 					if [[ "$(grep -w "$host" /etc/hosts | wc -l)" -gt "0" ]]; then
-						echo -e "\E[41;1;37m    Esse host ja estÃ¡ adicionado  !    \E[0m"
+						echo -e "\E[41;1;37m    Esse host ja está adicionado  !    \E[0m"
 						sleep 2
 						fun_openvpn
 					fi
@@ -1080,8 +1080,10 @@ inst_sqd() {
 			echo -e "\033[1;32mINSTALANDO DEPENDENCIAS"
 			echo ""
 			fun_instdep() {
-				apt-get install openvpn iptables openssl ca-certificates easy-rsa -y
-				apt-get install zip iptables-persistent -y
+				apt-get install openvpn iptables openssl ca-certificates easy-rsa zip -y
+				echo iptables-persistent iptables-persistent/autosave_v4 boolean true | debconf-set-selections
+				echo iptables-persistent iptables-persistent/autosave_v6 boolean true | debconf-set-selections
+				DEBIAN_FRONTEND=noninteractive apt-get install iptables-persistent -y
 			}
 			fun_bar 'fun_instdep'
 		} || {
@@ -1295,6 +1297,8 @@ exit 0' >$RCLOCAL
 	sleep 3
 	fun_conexao
 }
+				
+								
 
 
 
