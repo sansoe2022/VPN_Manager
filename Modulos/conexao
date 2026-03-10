@@ -1565,7 +1565,7 @@ exit 0' >$RCLOCAL
 		fi
 	}
 
-	fun_conexao() {
+		fun_conexao() {
 		while true; do
 			[[ ! -e '/home/sshplus' ]] && exit 0
 			clear
@@ -1625,9 +1625,8 @@ exit 0' >$RCLOCAL
 				sts7="\033[1;31m○ "
 			fi
 
-			# Fixed V2Ray check based on the old code's netstat logic
-			if netstat -tunlp 2>/dev/null | grep -q 'v2ray'; then
-				v2_pt=$(netstat -tunlp 2>/dev/null | grep 'v2ray' | awk '{print $4}' | awk -F: '{print $NF}' | sort -u | xargs | tr ' ' ',')
+			if netstat -tunlp 2>/dev/null | grep -iE 'v2ray|xray' >/dev/null; then
+				v2_pt=$(netstat -tunlp 2>/dev/null | grep -iE 'v2ray|xray' | awk '{print $4}' | awk -F: '{print $NF}' | sort -u | xargs | tr ' ' ',')
 				echo -e "\033[1;32mSERVICO: \033[1;33mV2RAY \033[1;32mPORTA: \033[1;37m$v2_pt"
 				sts_v2="\033[1;32m◉ "
 			else
@@ -1661,7 +1660,10 @@ exit 0' >$RCLOCAL
 			5 | 05) fun_socks ;;
 			6 | 06) inst_ssl ;;
 			7 | 07) fun_sslh ;;
-			8 | 08) v2raymanager ;;
+			8 | 08) 
+				# This will properly open the V2Ray manager script
+				v2raymanager 
+				;;
 			0 | 00)
 				echo -e "\033[1;31mSaindo...\033[0m"
 				sleep 2
