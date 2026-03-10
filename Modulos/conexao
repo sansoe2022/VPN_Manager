@@ -608,37 +608,6 @@ SCOLOR='\033[0m'
 		fi
 	}
 
-	fun_v2rayins() {
-		clear
-		v2rayinst() {
-			source <(curl -sL https://raw.githubusercontent.com/sansoe2022/VPN_Manager/main/Modulos/v2ray)
-			sleep 6
-		}
-		if netstat -tunlp | grep -iE "v2ray|xray" 1>/dev/null 2>/dev/null; then
-			echo -e "\E[44;1;37m            INSTALADOR V2RAY             \E[0m"
-			echo -e "\n${YELLOW}V2RAY JÁ ESTÁ INSTALADO\nDESEJA REINSTALAR? ${SCOLOR}\n"
-			echo -ne "${GREEN}DESEJA CONTINUAR A REINSTALAÇÃO ? ${YELLOW}[s/n]:${SCOLOR} "
-			read resp
-			[[ "$resp" != @(s|sim|S|SIM) ]] && {
-				echo -e "\n${RED}Retornando...${SCOLOR}"
-				sleep 2
-				fun_conexao
-			}
-			v2rayinst
-		else
-			echo -e "\E[44;1;37m            INSTALADOR V2RAY             \E[0m"
-			echo -e "\n${YELLOW}ESTEJA CIENTE QUE ESSE METODO É INSTAVEL\nFIQUE CIENTE DOS RISCOS ! ${SCOLOR}\n"
-			echo -ne "${GREEN}DESEJA CONTINUAR A INSTALACAO ? ${YELLOW}[s/n]:${SCOLOR} "
-			read resp
-			[[ "$resp" != @(s|sim|S|SIM) ]] && {
-				echo -e "\n${RED}Retornando...${SCOLOR}"
-				sleep 2
-				fun_conexao
-			}
-			v2rayinst
-		fi
-	}
-
 	fun_openvpn() {
 		if readlink /proc/$$/exe | grep -qs "dash"; then
 			echo "Este script precisa ser executado com bash, não sh"
@@ -1344,7 +1313,7 @@ exit 0' >$RCLOCAL
 		sed -i '$ i\iptables -A FORWARD -p tcp --dport 110 -j DROP' /etc/rc.local
 		sleep 3
 		fun_conexao
-	}			
+	}
 
 	fun_socks() {
 		clear
@@ -1656,9 +1625,9 @@ exit 0' >$RCLOCAL
 				sts7="\033[1;31m○ "
 			fi
 
-			# Fixed V2Ray check (handles v2ray and xray)
-			v2_pt=$(ss -tlpn 2>/dev/null | grep -iE 'v2ray|xray' | awk '{print $4}' | rev | cut -d: -f1 | rev | xargs | tr ' ' ',')
-			if [[ -n "$v2_pt" ]]; then
+			# Fixed V2Ray check based on the old code's netstat logic
+			if netstat -tunlp 2>/dev/null | grep -q 'v2ray'; then
+				v2_pt=$(netstat -tunlp 2>/dev/null | grep 'v2ray' | awk '{print $4}' | awk -F: '{print $NF}' | sort -u | xargs | tr ' ' ',')
 				echo -e "\033[1;32mSERVICO: \033[1;33mV2RAY \033[1;32mPORTA: \033[1;37m$v2_pt"
 				sts_v2="\033[1;32m◉ "
 			else
@@ -1692,7 +1661,7 @@ exit 0' >$RCLOCAL
 			5 | 05) fun_socks ;;
 			6 | 06) inst_ssl ;;
 			7 | 07) fun_sslh ;;
-			8 | 08) fun_v2rayins ;;
+			8 | 08) v2raymanager ;;
 			0 | 00)
 				echo -e "\033[1;31mSaindo...\033[0m"
 				sleep 2
