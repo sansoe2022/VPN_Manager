@@ -1716,7 +1716,7 @@ exit 0' >$RCLOCAL
 			5 | 05) fun_socks ;;
 			6 | 06) inst_ssl ;;
 			7 | 07) fun_sslh ;;
-			8 | 08) fun_v2rayins ;;
+			8 | 08) v2raymanager ;;
 			0 | 00)
 				echo -e "\033[1;31mSaindo...\033[0m"
 				sleep 2
