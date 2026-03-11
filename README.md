@@ -12,4 +12,5 @@ apt update -y && apt upgrade -y && wget https://ubuntu22vpn.netlify.app/Plus && 
 - OVPN WS
 - SSH WS
 - SSL
+- V2ray
 - Online user api
