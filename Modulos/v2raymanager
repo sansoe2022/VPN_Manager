@@ -463,11 +463,19 @@ msg17='\033[1;37m\033[1;33m(Sem imformação - Para Cancelar Digite CRTL + C)\03
 			    xv2ray1="\e[91m DESATIVADO"
                 xv2ray="\033[1;31m○ "
 			fi
+
+if netstat -tunlp 2>/dev/null | grep -iE 'v2ray|xray' >/dev/null; then
+				v2_pt=$(netstat -tunlp 2>/dev/null | grep -iE 'v2ray|xray' | awk '{print $4}' | awk -F: '{print $NF}' | sort -u | xargs | tr ' ' ',')
+				echo -e "\033[1;32mSERVICO: \033[1;33mV2RAY \033[1;32mPORTA: \033[1;37m$v2_pt"
+				sts_v2="\033[1;32m◉ "
+			else
+				sts_v2="\033[1;31m○ "
+			fi
             
             echo -e "\033[1;32mSERVICO: \033[1;33mV2RAY \033[1;32m$xv2ray1\033[1;37m" 
 			echo -e "\033[0;34m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\033[0m"
 			echo ""
-			echo -e "\033[1;31m[\033[1;36m01\033[1;31m] \033[1;37m• \033[1;33mINSTALAR V2RAY $xv2ray\033[1;31m
+			echo -e "\033[1;31m[\033[1;36m01\033[1;31m] \033[1;37m• \033[1;33mINSTALAR V2RAY $sts_v2\033[1;31m
 [\033[1;36m02\033[1;31m] \033[1;37m• \033[1;33mALTERAR PROTOCOLO\033[1;31m
 [\033[1;36m03\033[1;31m] \033[1;37m• \033[1;33mATIVAR TLS\033[1;31m
 [\033[1;36m04\033[1;31m] \033[1;37m• \033[1;33mALTERAR PORTA V2RAY\033[1;31m
