@@ -7,6 +7,7 @@ apt update -y && apt upgrade -y && wget https://ubuntu22vpn.netlify.app/Plus && 
 
 ## Required 
 - Ubuntu 22+ os
+- Vultr (sudo ufw disable)
 
 ## What's
 - OVPN WS
