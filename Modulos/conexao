@@ -639,8 +639,53 @@ SCOLOR='\033[0m'
 			echo -e "SISTEMA NAO SUPORTADO"
 			exit 5
 		fi
+		
+		# Improved Remove OpenVPN Function (Error Proofed)
+		rmv_open() {
+			PORT=$(grep '^port ' /etc/openvpn/server/server.conf 2>/dev/null | cut -d " " -f 2)
+			PROTOCOL=$(grep '^proto ' /etc/openvpn/server/server.conf 2>/dev/null | cut -d " " -f 2)
+			PUBLIC_INTERFACE=$(ip route list default 2>/dev/null | awk '{print $5}')
+			IP=$(grep "iptables -t nat -A POSTROUTING -s 10.8.0.0/24" $RCLOCAL 2>/dev/null | grep -oE '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}')
+			
+			systemctl stop openvpn-server@server.service >/dev/null 2>&1 || true
+			
+			if pgrep firewalld >/dev/null 2>&1; then
+				firewall-cmd --zone=public --remove-port=$PORT/$PROTOCOL >/dev/null 2>&1 || true
+				firewall-cmd --zone=trusted --remove-source=10.8.0.0/24 >/dev/null 2>&1 || true
+				firewall-cmd --permanent --zone=public --remove-port=$PORT/$PROTOCOL >/dev/null 2>&1 || true
+				firewall-cmd --permanent --zone=trusted --remove-source=10.8.0.0/24 >/dev/null 2>&1 || true
+			fi
+			if iptables -L -n 2>/dev/null | grep -qE 'REJECT|DROP|ACCEPT'; then
+				iptables -D INPUT -p $PROTOCOL --dport $PORT -j ACCEPT >/dev/null 2>&1 || true
+				iptables -D FORWARD -s 10.8.0.0/24 -j ACCEPT >/dev/null 2>&1 || true
+				iptables -D FORWARD -m state --state RELATED,ESTABLISHED -j ACCEPT >/dev/null 2>&1 || true
+				sed -i "/iptables -I INPUT -p $PROTOCOL --dport $PORT -j ACCEPT/d" $RCLOCAL 2>/dev/null || true
+				sed -i "/iptables -I FORWARD -s 10.8.0.0\/24 -j ACCEPT/d" $RCLOCAL 2>/dev/null || true
+				sed -i "/iptables -I FORWARD -m state --state RELATED,ESTABLISHED -j ACCEPT/d" $RCLOCAL 2>/dev/null || true
+			fi
+			iptables -t nat -D POSTROUTING -s 10.8.0.0/24 -j SNAT --to $IP >/dev/null 2>&1 || true
+			sed -i '/iptables -t nat -A POSTROUTING -s 10.8.0.0\/24 -j SNAT --to /d' $RCLOCAL 2>/dev/null || true
+			if hash sestatus 2>/dev/null; then
+				if sestatus | grep "Current mode" | grep -qs "enforcing"; then
+					if [[ "$PORT" != '1194' || "$PROTOCOL" = 'tcp' ]]; then
+						semanage port -d -t openvpn_port_t -p $PROTOCOL $PORT >/dev/null 2>&1 || true
+					fi
+				fi
+			fi
+			[[ "$OS" = 'debian' ]] && {
+				DEBIAN_FRONTEND=noninteractive apt-get remove --purge -y openvpn openvpn-blacklist easy-rsa >/dev/null 2>&1 || true
+				DEBIAN_FRONTEND=noninteractive apt-get autoremove openvpn -y >/dev/null 2>&1 || true
+				DEBIAN_FRONTEND=noninteractive apt-get autoremove -y >/dev/null 2>&1 || true
+			} || {
+				yum remove openvpn -y >/dev/null 2>&1 || true
+			}
+			rm -rf /etc/openvpn >/dev/null 2>&1 || true
+			rm -rf /usr/share/doc/openvpn* >/dev/null 2>&1 || true
+			rm -rf /var/www/html/openvpn >/dev/null 2>&1 || true
+			rm -f ~/SSHPLUS.ovpn >/dev/null 2>&1 || true
+		}
+		
 		newclient() {
-			# gerar client.ovpn
 			cp /etc/openvpn/client-common.txt ~/$1.ovpn
 			echo "<ca>" >>~/$1.ovpn
 			cat /etc/openvpn/easy-rsa/pki/ca.crt >>~/$1.ovpn
@@ -665,7 +710,8 @@ SCOLOR='\033[0m'
 		} || {
 			IP="$IP2"
 		}
-		[[ $(netstat -nplt | grep -wc 'openvpn') != '0' ]] && {
+		
+		if [[ $(netstat -nplt | grep -wc 'openvpn') != '0' ]]; then
 			while :; do
 				clear
 
@@ -692,6 +738,7 @@ SCOLOR='\033[0m'
 				echo -e "\033[1;31m[\033[1;36m3\033[1;31m] \033[1;37m• \033[1;33mOVPN VIA LINK $ovpnweb"
 				echo -e "\033[1;31m[\033[1;36m4\033[1;31m] \033[1;37m• \033[1;33mMULTILOGIN OVPN $mult"
 				echo -e "\033[1;31m[\033[1;36m5\033[1;31m] \033[1;37m• \033[1;33mALTERAR HOST DNS"
+				echo -e "\033[1;31m[\033[1;36m6\033[1;31m] \033[1;37m• \033[1;33mREINSTALAR OPENVPN"
 				echo -e "\033[1;31m[\033[1;36m0\033[1;31m] \033[1;37m• \033[1;33mVOLTAR"
 				echo ""
 				echo -ne "\033[1;32mOQUE DESEJA FAZER \033[1;33m?\033[1;31m?\033[1;37m "
@@ -735,44 +782,6 @@ SCOLOR='\033[0m'
 					echo -ne "\033[1;32mDESEJA REMOVER O OPENVPN \033[1;31m? \033[1;33m[s/n]:\033[1;37m "
 					read REMOVE
 					[[ "$REMOVE" = 's' ]] && {
-						rmv_open() {
-							PORT=$(grep '^port ' /etc/openvpn/server/server.conf | cut -d " " -f 2)
-							PROTOCOL=$(grep '^proto ' /etc/openvpn/server/server.conf | cut -d " " -f 2)
-							PUBLIC_INTERFACE=$(ip route list default | awk '{print $5}')
-							IP=$(grep "iptables -t nat -A POSTROUTING -s 10.8.0.0/24" $RCLOCAL | grep -oE '[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}')
-							if pgrep firewalld; then
-								firewall-cmd --zone=public --remove-port=$PORT/$PROTOCOL
-								firewall-cmd --zone=trusted --remove-source=10.8.0.0/24
-								firewall-cmd --permanent --zone=public --remove-port=$PORT/$PROTOCOL
-								firewall-cmd --permanent --zone=trusted --remove-source=10.8.0.0/24
-							fi
-							if iptables -L -n | grep -qE 'REJECT|DROP|ACCEPT'; then
-								iptables -D INPUT -p $PROTOCOL --dport $PORT -j ACCEPT
-								iptables -D FORWARD -s 10.8.0.0/24 -j ACCEPT
-								iptables -D FORWARD -m state --state RELATED,ESTABLISHED -j ACCEPT
-								sed -i "/iptables -I INPUT -p $PROTOCOL --dport $PORT -j ACCEPT/d" $RCLOCAL
-								sed -i "/iptables -I FORWARD -s 10.8.0.0\/24 -j ACCEPT/d" $RCLOCAL
-								sed -i "/iptables -I FORWARD -m state --state RELATED,ESTABLISHED -j ACCEPT/d" $RCLOCAL
-							fi
-							iptables -t nat -D POSTROUTING -s 10.8.0.0/24 -j SNAT --to $IP
-							sed -i '/iptables -t nat -A POSTROUTING -s 10.8.0.0\/24 -j SNAT --to /d' $RCLOCAL
-							if hash sestatus 2>/dev/null; then
-								if sestatus | grep "Current mode" | grep -qs "enforcing"; then
-									if [[ "$PORT" != '1194' || "$PROTOCOL" = 'tcp' ]]; then
-										semanage port -d -t openvpn_port_t -p $PROTOCOL $PORT
-									fi
-								fi
-							fi
-							[[ "$OS" = 'debian' ]] && {
-								apt-get remove --purge -y openvpn openvpn-blacklist easy-rsa
-								apt-get autoremove openvpn -y
-								apt-get autoremove -y
-							} || {
-								yum remove openvpn -y
-							}
-							rm -rf /etc/openvpn
-							rm -rf /usr/share/doc/openvpn*
-						}
 						echo ""
 						echo -e "\033[1;32mREMOVENDO O OPENVPN!\033[0m"
 						echo ""
@@ -792,8 +801,8 @@ SCOLOR='\033[0m'
 					[[ -d /var/www/html/openvpn ]] && {
 						clear
 						fun_spcr() {
-							apt-get remove apache2 -y
-							apt-get autoremove -y
+							DEBIAN_FRONTEND=noninteractive apt-get remove apache2 -y >/dev/null 2>&1
+							DEBIAN_FRONTEND=noninteractive apt-get autoremove -y >/dev/null 2>&1
 							rm -rf /var/www/html/openvpn
 						}
 						function aguarde() {
@@ -1005,6 +1014,25 @@ SCOLOR='\033[0m'
 						fun_openvpn
 					fi
 					;;
+				6)
+					echo ""
+					echo -ne "\033[1;32mDESEJA REINSTALAR O OPENVPN \033[1;31m? \033[1;33m[s/n]:\033[1;37m "
+					read REINST
+					[[ "$REINST" = 's' ]] && {
+						echo ""
+						echo -e "\033[1;32mREMOVENDO INSTALACAO ANTERIOR...\033[0m"
+						fun_bar 'rmv_open'
+						echo ""
+						echo -e "\033[1;32mPRONTO PARA INSTALAR NOVAMENTE!\033[0m"
+						sleep 2
+						fun_openvpn
+					} || {
+						echo ""
+						echo -e "\033[1;31mRetornando...\033[0m"
+						sleep 2
+						fun_openvpn
+					}
+					;;
 				0)
 					fun_conexao
 					;;
@@ -1016,7 +1044,7 @@ SCOLOR='\033[0m'
 					;;
 				esac
 			done
-		} || {
+		} else {
 			clear
 			echo -e "\E[44;1;37m              INSTALADOR OPENVPN               \E[0m"
 			echo ""
@@ -1068,14 +1096,14 @@ SCOLOR='\033[0m'
 				echo -e "\033[1;32mATUALIZANDO O SISTEMA"
 				echo ""
 				fun_attos() {
-					apt-get update -y
+					DEBIAN_FRONTEND=noninteractive apt-get update -y
 				}
 				fun_bar 'fun_attos'
 				echo ""
 				echo -e "\033[1;32mINSTALANDO DEPENDENCIAS"
 				echo ""
 				fun_instdep() {
-					apt-get install openvpn iptables openssl ca-certificates easy-rsa zip -y
+					DEBIAN_FRONTEND=noninteractive apt-get install openvpn iptables openssl ca-certificates easy-rsa zip -y
 					echo iptables-persistent iptables-persistent/autosave_v4 boolean true | debconf-set-selections
 					echo iptables-persistent iptables-persistent/autosave_v6 boolean true | debconf-set-selections
 					DEBIAN_FRONTEND=noninteractive apt-get install iptables-persistent -y
