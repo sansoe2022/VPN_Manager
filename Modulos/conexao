@@ -711,7 +711,7 @@ SCOLOR='\033[0m'
 			IP="$IP2"
 		}
 		
-		if [[ $(netstat -nplt | grep -wc 'openvpn') != '0' ]]; then
+		[[ $(netstat -nplt | grep -wc 'openvpn') != '0' ]] && {
 			while :; do
 				clear
 
@@ -1044,7 +1044,7 @@ SCOLOR='\033[0m'
 					;;
 				esac
 			done
-		} else {
+		} || {
 			clear
 			echo -e "\E[44;1;37m              INSTALADOR OPENVPN               \E[0m"
 			echo ""
