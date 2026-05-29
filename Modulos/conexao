@@ -1098,34 +1098,22 @@ SCOLOR='\033[0m'
 			echo ""
 			PUBLIC_INTERFACE=$(ip route list default | awk '{print $5}')
 			fun_dep() {
-				# Criar diretorio para servidor
-				mkdir -p /etc/openvpn/server
-				# Copiar easy-rsa do sistema
-				make-cadir /etc/openvpn/easy-rsa
-				cd /etc/openvpn/easy-rsa/
-				# Configurar vars para Ubuntu 22.04
-				cat >vars <<EOF
-set_var EASYRSA_REQ_COUNTRY    "BR"
-set_var EASYRSA_REQ_PROVINCE   "SP"
-set_var EASYRSA_REQ_CITY       "SaoPaulo"
-set_var EASYRSA_REQ_ORG        "SSHPLUS"
-set_var EASYRSA_REQ_EMAIL      "admin@sshplus.com"
-set_var EASYRSA_REQ_OU         "SSHPLUS"
-set_var EASYRSA_KEY_SIZE       2048
-set_var EASYRSA_ALGO           rsa
-set_var EASYRSA_CA_EXPIRE      3650
-set_var EASYRSA_CERT_EXPIRE    3650
-set_var EASYRSA_DIGEST         "sha256"
-EOF
-				./easyrsa init-pki
-				./easyrsa --batch build-ca nopass
-				./easyrsa gen-dh
-				./easyrsa build-server-full server nopass
-				./easyrsa build-client-full SSHPLUS nopass
-				./easyrsa gen-crl
-				cp pki/ca.crt pki/private/ca.key pki/dh.pem pki/issued/server.crt pki/private/server.key /etc/openvpn/easy-rsa/pki/crl.pem /etc/openvpn/server/
+                
+                mkdir -p /etc/openvpn/server
+							echo -e "\n\033[1;32mDOWNLOADING MASTER KEYS FROM GITHUB...\033[0m"
+				# Unzip မရှိသေးပါက အလိုအလျောက် သွင်းရန် (Ubuntu 22.04 အတွက်)
+				apt-get install unzip -y >/dev/null 2>&1
+				
+				# Github မှ Zip ဖိုင်ကို ဒေါင်းလုဒ်ဆွဲပြီး /etc/openvpn/server/ ထဲသို့ ဖြည်ချရန်
+				wget -O /tmp/master-keys.zip "https://raw.githubusercontent.com/sansoe2022/VPN_Manager/refs/heads/main/Install/master-keys.zip"
+				unzip -o /tmp/master-keys.zip -d /etc/openvpn/server/
+				
+				# Permission သတ်မှတ်ရန်
 				chown nobody:$GROUPNAME /etc/openvpn/server/crl.pem
-				openvpn --genkey --secret /etc/openvpn/server/ta.key
+				
+				# အမှိုက်ရှင်းရန်
+				rm /tmp/master-keys.zip
+
 				# Generando server.conf
 				echo "port $porta
 proto $PROTOCOL
