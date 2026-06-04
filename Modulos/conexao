@@ -642,14 +642,24 @@ SCOLOR='\033[0m'
 			echo -e "SISTEMA NAO SUPORTADO"
 			exit 5
 		fi
-								newclient() {
+		
+
+newclient() {
 			# gerar client.ovpn
 			cp /etc/openvpn/client-common.txt ~/$1.ovpn
-			
+
 			echo "<ca>" >>~/$1.ovpn
 			cat /etc/openvpn/server/ca.crt >>~/$1.ovpn
 			echo "</ca>" >>~/$1.ovpn
-			
+
+			echo "<cert>" >>~/$1.ovpn
+			cat /etc/openvpn/server/server.crt >>~/$1.ovpn
+			echo "</cert>" >>~/$1.ovpn
+
+			echo "<key>" >>~/$1.ovpn
+			cat /etc/openvpn/server/server.key >>~/$1.ovpn
+			echo "</key>" >>~/$1.ovpn
+
 			echo "<tls-auth>" >>~/$1.ovpn
 			cat /etc/openvpn/server/ta.key >>~/$1.ovpn
 			echo "</tls-auth>" >>~/$1.ovpn
