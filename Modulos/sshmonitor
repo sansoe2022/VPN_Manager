@@ -1,4 +1,5 @@
 #!/bin/bash
+INTERFACE=$(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)' | head -1)
 clear
 if [[ -e /usr/lib/licence ]]; then
 database="/root/usuarios.db"
